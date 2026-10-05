@@ -27,6 +27,16 @@ In **Redaction Policies** you can:
 * **Referential integrity:** the same value is replaced with the same stand-in across documents in a context.
 * **Disambiguation:** helps resolve which entity type an ambiguous value is.
 
+On the **My Contexts** tab you can:
+
+* **View** a context: its settings, its number of entries, and the entries counted by filter type. Entries stored without a filter type, which only a [context import]({$ philter_docs }/api_and_sdks/api/contexts_api.html#import-a-mapping-table-into-a-context) creates, are counted on a row labeled **No filter type**. The counts sum to the number of entries.
+* **Create** a context with **New Context**, optionally with entity type disambiguation and the [redaction ledger]({$ philter_docs }/redaction/ledgers.html) enabled. Context names are unique per user.
+* **Edit** a context's settings. The dialog starts from the context's current settings, and only the settings you change are sent to Philter. Turning the ledger off stops recording redaction evidence for that context.
+* **Clear** a context, removing all of its entries but keeping the context.
+* **Delete** a context. Philter refuses while a document submitted for redaction with that context is still pending or processing.
+
+Administrators also see an **All Contexts** tab listing every user's contexts and their owners, with **View** for each, when Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` is `true`.
+
 ## Redaction Ledgers
 
 **Redaction Ledgers** shows the tamper-evident, hash-chained record of redactions made in any context with the [ledger]({$ philter_docs }/redaction/ledgers.html) enabled. You can:

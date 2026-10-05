@@ -21,7 +21,6 @@ import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
-import ai.philterd.philter.data.services.ContextEntryDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
@@ -78,9 +77,6 @@ class DashboardViewsTest {
 
         views.put("Redact lists", mongo -> new RedactListsView(mongo, encryption, audit,
                 mock(RedactListsDataService.class)));
-
-        views.put("Contexts", mongo -> new ContextsView(mongo, encryption, audit,
-                mock(ContextDataService.class), mock(ContextEntryDataService.class)));
 
         views.put("Ledger", mongo -> new LedgerView(mongo, encryption, audit,
                 mock(LedgerDataService.class), signingKeys()));

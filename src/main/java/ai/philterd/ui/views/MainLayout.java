@@ -19,17 +19,21 @@ import ai.philterd.ui.security.Notice;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.Sessions;
 import com.vaadin.flow.component.applayout.AppLayout;
+import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.sidenav.SideNav;
+import com.vaadin.flow.component.sidenav.SideNavItem;
 import jakarta.annotation.security.RolesAllowed;
 
 /**
- * The frame around every view a signed-in person uses: who they are, and a way to sign out. Vaadin checks
- * a layout's access rules as well as its views', so it allows only fully signed-in people.
+ * The frame around every view a signed-in person uses: navigation, who they are, and a way to sign out.
+ * Vaadin checks a layout's access rules as well as its views', so it allows only fully signed-in people.
  */
 @RolesAllowed(Roles.USER)
 public class MainLayout extends AppLayout {
@@ -52,7 +56,15 @@ public class MainLayout extends AppLayout {
         header.setWidthFull();
         header.getStyle().set("padding", "0 var(--lumo-space-m)");
 
-        addToNavbar(header);
+        addToNavbar(new DrawerToggle(), header);
+
+        final SideNav home = new SideNav();
+        home.addItem(new SideNavItem("Home", HomeView.class, VaadinIcon.HOME.create()));
+
+        final SideNav redaction = new SideNav("Redaction");
+        redaction.addItem(new SideNavItem("Contexts", ContextsView.class, VaadinIcon.RECORDS.create()));
+
+        addToDrawer(home, redaction);
 
     }
 

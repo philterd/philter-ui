@@ -16,11 +16,9 @@
 package ai.philterd.philter.data.providers;
 
 import ai.philterd.philter.data.entities.ApiKeyEntity;
-import ai.philterd.philter.data.entities.ContextEntity;
 import ai.philterd.philter.data.entities.CustomListEntity;
 import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
-import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.CustomListDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import com.vaadin.flow.data.provider.Query;
@@ -94,26 +92,6 @@ class DataProviderScopingTest {
                 List.of(new QuerySortOrder("name", SortDirection.DESCENDING)), null, null)).count();
 
         verify(service).findAll(OWNER, 0, 25, "name", "DESC");
-
-    }
-
-    @Test
-    @DisplayName("Contexts are paged and counted for their owner alone")
-    void contextsAreScopedToTheirOwner() {
-
-        final ContextDataService service = mock(ContextDataService.class);
-        when(service.findAll(any(), anyInt(), anyInt(), any(), any())).thenReturn(List.of());
-        when(service.count(any())).thenReturn(0);
-
-        final ContextEntityDataProvider provider = new ContextEntityDataProvider(OWNER, service);
-
-        provider.fetch(firstPage()).count();
-        provider.size(firstPage());
-
-        verify(service).findAll(eq(OWNER), eq(0), eq(25), any(), any());
-        verify(service).count(OWNER);
-        verify(service, never()).findAll(eq(SOMEONE_ELSE), anyInt(), anyInt(), any(), any());
-        verify(service, never()).count(SOMEONE_ELSE);
 
     }
 
@@ -203,20 +181,6 @@ class DataProviderScopingTest {
                 .fetch(firstPage()).toList();
 
         assertEquals(List.of(first, second), fetched);
-
-    }
-
-    @Test
-    @DisplayName("A context grid is not sorted into another user's rows")
-    void aSortedContextGridKeepsItsOwner() {
-
-        final ContextDataService service = mock(ContextDataService.class);
-        when(service.findAll(any(), anyInt(), anyInt(), any(), any())).thenReturn(List.of());
-
-        new ContextEntityDataProvider(OWNER, service).fetch(new Query<ContextEntity, Void>(0, 25,
-                List.of(new QuerySortOrder("contextName", SortDirection.ASCENDING)), null, null)).count();
-
-        verify(service).findAll(OWNER, 0, 25, "contextName", "ASC");
 
     }
 
