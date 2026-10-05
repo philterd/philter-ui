@@ -1,0 +1,52 @@
+name: docs
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+  # Lets this workflow be exercised without cutting a release. It otherwise only runs on a version
+  # tag, so a change to it (an action upgrade, say) would first be tested during a release, which is
+  # the worst time to find out it is broken.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Docs version to publish. Defaults to "test" so a manual run cannot change what readers see. Remove it afterwards with: mike delete --push <version>'
+        required: false
+        default: test
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Configure Git Credentials
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+      - uses: actions/setup-python@v7
+        with:
+          python-version: 3.x
+      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
+      - uses: actions/cache@v6
+        with:
+          key: mkdocs-material-${{ env.cache_id }}
+          path: .cache
+          restore-keys: |
+            mkdocs-material-
+      - run: pip install -r requirements.txt
+        working-directory: ./docs
+      - name: Deploy versioned docs
+        working-directory: ./docs
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # A manual run publishes only under its own version name. It deliberately does not touch
+            # the 'latest' alias or the default version, so exercising this workflow cannot change the
+            # documentation readers land on. It still performs a real credentialed push to gh-pages,
+            # which is the part worth testing.
+            mike deploy --push "${{ inputs.version }}"
+          else
+            mike deploy --push --update-aliases "${GITHUB_REF_NAME}" latest
+            mike set-default --push latest
+          fi
