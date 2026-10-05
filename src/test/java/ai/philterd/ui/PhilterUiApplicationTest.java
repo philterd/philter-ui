@@ -26,6 +26,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class PhilterUiApplicationTest {
@@ -34,12 +35,21 @@ class PhilterUiApplicationTest {
     private Environment environment;
 
     @Test
-    void startsAndServesThePlaceholder() throws Exception {
-        final String url = "http://localhost:" + environment.getRequiredProperty("local.server.port") + "/";
+    void servesTheSignInPage() throws Exception {
+        assertEquals(200, get("/login").statusCode());
+    }
+
+    @Test
+    void sendsSomeoneNotSignedInToTheSignInPage() throws Exception {
+        final HttpResponse<String> response = get("/");
+        assertEquals(302, response.statusCode());
+        assertTrue(response.headers().firstValue("Location").orElse("").endsWith("/login"));
+    }
+
+    private HttpResponse<String> get(final String path) throws Exception {
+        final String url = "http://localhost:" + environment.getRequiredProperty("local.server.port") + path;
         try (HttpClient client = HttpClient.newHttpClient()) {
-            final HttpResponse<String> response = client.send(HttpRequest.newBuilder(URI.create(url)).GET().build(),
-                    HttpResponse.BodyHandlers.ofString());
-            assertEquals(200, response.statusCode(), response.body());
+            return client.send(HttpRequest.newBuilder(URI.create(url)).GET().build(), HttpResponse.BodyHandlers.ofString());
         }
     }
 

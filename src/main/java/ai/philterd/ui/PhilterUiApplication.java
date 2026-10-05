@@ -31,7 +31,7 @@ import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoCon
 // Override the react-router version that Vaadin's React integration pulls in transitively. The
 // platform-bundled version has open security advisories; pin a patched release.
 @NpmPackage(value = "react-router", version = "7.18.2")
-// No login yet, so no default in-memory user with a generated password.
+// Philter is the user store, so no default in-memory user with a generated password.
 @SpringBootApplication(exclude = UserDetailsServiceAutoConfiguration.class)
 public class PhilterUiApplication implements AppShellConfigurator {
 

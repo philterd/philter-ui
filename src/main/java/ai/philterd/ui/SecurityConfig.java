@@ -15,6 +15,8 @@
  */
 package ai.philterd.ui;
 
+import ai.philterd.ui.views.ContinueView;
+import ai.philterd.ui.views.SignInView;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -24,8 +26,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import static com.vaadin.flow.spring.security.VaadinSecurityConfigurer.vaadin;
 
 /**
- * No login yet: the only view is the placeholder, which allows anonymous access. Vaadin's configurer
- * keeps its CSRF handling and denies any view that does not declare its access rules.
+ * People sign in with their Philter username and password, checked by Philter through
+ * {@code PhilterAuthenticationProvider}. Vaadin's configurer keeps its CSRF handling and denies any view
+ * that does not declare its access rules. Every sign-in lands on {@link ContinueView}, which sends the
+ * person to any step they must finish first.
  */
 @Configuration
 @EnableWebSecurity
@@ -35,7 +39,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(auth -> auth
                         .requestMatchers("/public/**", "/themes/**", "/icons/**", "/favicon.ico").permitAll())
-                .with(vaadin(), vaadin -> { });
+                .with(vaadin(), vaadin -> vaadin
+                        .loginView(SignInView.class)
+                        .defaultSuccessUrl("/continue", true));
         return http.build();
     }
 

@@ -47,8 +47,8 @@ With Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` set to `true`, administrators c
 **My Account** lets each user:
 
 * **Change their password.** See [password requirements](sign_in.md#password-requirements).
-* **Enroll in or remove MFA.** See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
-* **Manage API keys** for scripts and integrations. Each key carries [scopes]({$ philter_docs }/account/api_keys.html#scopes) naming what it may do; choose them when creating a key and change them later with **Edit scopes**. A key value is shown once, when it is created. The session key Philter UI uses for your sign-in is not listed here and is revoked when you sign out.
+* **Enroll in or remove MFA**, when an administrator has made it available. Removing it takes a code from your authenticator app. See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
+* **Review API keys**: list your keys, including session keys, change a key's [scopes]({$ philter_docs }/account/api_keys.html#scopes) with **Edit scopes**, and revoke keys. Philter does not let a session key create API keys, so create long-lived keys for scripts and integrations with the [API Keys API]({$ philter_docs }/api_and_sdks/api/api_keys_api.html) using an existing key.
 * **Set a [webhook]({$ philter_docs }/api_and_sdks/api/webhooks.html)** URL and secret to receive a signed notification when an asynchronous redaction completes or fails.
 
 ## Administration
@@ -61,6 +61,7 @@ The Users grid lists all users, including deactivated ones.
 
 * **Add a user** with a username, an optional email address, a role (`admin` or `user`), and a temporary password. The user sets their own password at first sign-in. Leave the password empty for an account that will use API keys only and never sign in.
 * **Reset a password.** The user must set a new one at their next sign-in, and their current sessions end.
+* **Sign a user out everywhere** by revoking their session keys.
 * **Set a role** to `admin` or `user`. You cannot change your own role, and the last active administrator cannot be demoted.
 * **Unlock MFA** or **Disable MFA** for a user who is locked out or has lost their authenticator. See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
 * **Deactivate a user.** Users are deactivated, never deleted. A deactivated user cannot sign in and their API keys stop working, but their data, including policies and redaction ledger, is kept. You cannot deactivate your own account or the last active administrator.

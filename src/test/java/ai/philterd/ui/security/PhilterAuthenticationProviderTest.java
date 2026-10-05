@@ -1,0 +1,142 @@
+/*
+ *     Copyright 2026 Philterd, LLC @ https://www.philterd.ai
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *          http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package ai.philterd.ui.security;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class PhilterAuthenticationProviderTest {
+
+    private static final String PASSWORD = "correct-horse-battery-staple";
+
+    private FakePhilter philter;
+    private PhilterAuthenticationProvider provider;
+    private SignIns signIns;
+
+    @BeforeEach
+    void start() throws Exception {
+        philter = new FakePhilter();
+        final PhilterClients clients = new PhilterClients(philter.url());
+        signIns = new SignIns(clients, new SessionKeyRevoker(clients));
+        provider = new PhilterAuthenticationProvider(clients, signIns);
+    }
+
+    @AfterEach
+    void stop() {
+        philter.close();
+    }
+
+    @Test
+    void signsInAUser() {
+        final Authentication authentication = signIn("jordan");
+        assertEquals(Set.of("ROLE_USER"), roles(authentication));
+        final PhilterUser user = assertInstanceOf(PhilterUser.class, authentication.getPrincipal());
+        assertEquals("jordan", user.getUsername());
+        assertFalse(user.isAdministrator());
+        assertEquals("sk_jordan", user.sessionKey());
+        assertNull(authentication.getCredentials());
+    }
+
+    @Test
+    void signsInAnAdministratorWithBothRoles() {
+        final Authentication authentication = signIn("admin");
+        assertEquals(Set.of("ROLE_USER", "ROLE_ADMIN"), roles(authentication));
+        assertTrue(((PhilterUser) authentication.getPrincipal()).isAdministrator());
+    }
+
+    @Test
+    void anMfaChallengeHoldsOnlyThePendingRole() {
+        final Authentication authentication = signIn("mfa");
+        assertEquals(Set.of("ROLE_MFA_PENDING"), roles(authentication));
+        final PendingMfa pending = assertInstanceOf(PendingMfa.class, authentication.getPrincipal());
+        assertEquals("mfa", pending.getUsername());
+        assertEquals("challenge-1", pending.challenge());
+    }
+
+    @Test
+    void aCorrectCodeCompletesSignIn() throws Exception {
+        final Authentication authentication = signIns.completeSignIn(new PendingMfa("mfa", "challenge-1"), "123456");
+        assertEquals(Set.of("ROLE_USER"), roles(authentication));
+        assertEquals("sk_mfa", ((PhilterUser) authentication.getPrincipal()).sessionKey());
+    }
+
+    @Test
+    void aPasswordSetByAnAdministratorRestrictsTheSession() {
+        final Authentication authentication = signIn("newpassword");
+        assertEquals(Set.of("ROLE_PASSWORD_CHANGE"), roles(authentication));
+        assertEquals(PhilterUser.Restriction.PASSWORD_CHANGE, ((PhilterUser) authentication.getPrincipal()).getRestriction());
+    }
+
+    @Test
+    void requiredEnrollmentRestrictsTheSession() {
+        final Authentication authentication = signIn("enroll");
+        assertEquals(Set.of("ROLE_MFA_ENROLLMENT"), roles(authentication));
+    }
+
+    @Test
+    void refusalsAreExplainedWithoutSayingWhichUsernamesExist() {
+        assertEquals(SignInMessages.INVALID, failure("nobody"));
+        assertEquals("Too many failed sign-ins for this username. Try again in 15 minutes.", failure("locked"));
+        assertEquals(SignInMessages.RATE_LIMITED, failure("busy"));
+        assertEquals(SignInMessages.MFA_LOCKED, failure("mfalocked"));
+        assertEquals(SignInMessages.DISABLED, failure("disabled"));
+    }
+
+    @Test
+    void philterBeingUnreachableIsReported() {
+        final PhilterClients clients = new PhilterClients("http://127.0.0.1:1");
+        final PhilterAuthenticationProvider unreachable = new PhilterAuthenticationProvider(clients,
+                new SignIns(clients, new SessionKeyRevoker(clients)));
+        final SignInFailedException failure = assertThrows(SignInFailedException.class,
+                () -> unreachable.authenticate(UsernamePasswordAuthenticationToken.unauthenticated("jordan", PASSWORD)));
+        assertEquals(SignInMessages.UNAVAILABLE, failure.getMessage());
+    }
+
+    @Test
+    void aKeyWhoseRoleCannotBeReadIsRevoked() {
+        failure("broken");
+        assertEquals(java.util.List.of("sk_broken"), philter.revokedKeys);
+    }
+
+    private Authentication signIn(final String username) {
+        return provider.authenticate(UsernamePasswordAuthenticationToken.unauthenticated(username, PASSWORD));
+    }
+
+    private String failure(final String username) {
+        final SignInFailedException failure = assertThrows(SignInFailedException.class, () -> signIn(username));
+        assertFalse(failure.getMessage().contains(PASSWORD));
+        return failure.getMessage();
+    }
+
+    private static Set<String> roles(final Authentication authentication) {
+        return authentication.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toSet());
+    }
+
+}

@@ -13,23 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.ui;
+package ai.philterd.ui.views;
 
+import ai.philterd.philter.model.User;
+import ai.philterd.ui.security.PhilterClients;
+import ai.philterd.ui.security.Roles;
+import ai.philterd.ui.security.Sessions;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
+import jakarta.annotation.security.RolesAllowed;
+
+import java.io.IOException;
 
 /** Shown until the dashboard's views are ported to Philter's REST API. */
-@Route("")
+@Route(value = "", layout = MainLayout.class)
 @PageTitle("Philter UI")
-@AnonymousAllowed
-public class PlaceholderView extends VerticalLayout {
+@RolesAllowed(Roles.USER)
+public class HomeView extends VerticalLayout {
 
-    public PlaceholderView() {
+    /**
+     * Reads the person's user from Philter, so a session key that has expired or been revoked is noticed
+     * on opening the page and the session ends.
+     */
+    public HomeView(final PhilterClients clients) throws IOException {
+        final User user = clients.forUser(Sessions.currentUser().orElseThrow()).getCurrentUser();
         add(new H2("Philter UI"),
+                new Paragraph("Signed in to Philter as " + user.getUsername() + ", with the " + user.getRole() + " role."),
                 new Paragraph("The Philter dashboard is being ported to Philter's REST API. "
                         + "Until it is, administer Philter through its API."));
     }

@@ -1,15 +1,15 @@
 # Philter UI
 
-An optional web UI for administering [Philter](https://github.com/philterd/philter). Philter 4.0 runs headless and is administered through its REST API; Philter UI is a separate application that calls that API with an administrator's API key. Philter does not need it.
+An optional web UI for administering [Philter](https://github.com/philterd/philter). Philter 4.0 runs headless and is administered through its REST API; Philter UI is a separate application that calls that API. People sign in with their Philter username and password; Philter checks them and returns a session key that Philter UI uses for that person's requests. Philter does not need it.
 
 ## Status
 
 The UI is being moved out of Philter in two steps.
 
-1. **Done:** the Vaadin dashboard was moved here from `philterd/philter` at commit `c558c65`. Its views still call Philter's internal services and entities, so they are kept under `src/main/java/ai/philterd/philter/` (and their tests under `src/test/java/ai/philterd/philter/`) and excluded from compilation in `pom.xml`. The application that builds today is a shell in `ai.philterd.ui` that serves a placeholder page.
+1. **Done:** the Vaadin dashboard was moved here from `philterd/philter` at commit `c558c65`. Its views still call Philter's internal services and entities, so they are kept under `src/main/java/ai/philterd/philter/` (and their tests under `src/test/java/ai/philterd/philter/`) and excluded from compilation in `pom.xml`. The application that builds today, in `ai.philterd.ui`, signs people in through Philter (password, MFA, forced password change, and MFA enrollment) and serves a placeholder home page.
 2. **Next:** each view is ported to Philter's REST API through [philter-sdk-java](https://github.com/philterd/philter-sdk-java), moved into `ai.philterd.ui`, and removed from the exclusion.
 
-The user guide in `docs/` (MkDocs; `mkdocs build` from that directory) describes the intended behavior, including sign-in through Philter, which Philter does not yet support.
+The user guide is in `docs/` (MkDocs; run `mkdocs build` from that directory). Its dashboard page describes the views still to be ported.
 
 ## Building
 
@@ -25,7 +25,13 @@ mvn verify
 java -jar target/philter-ui-4.0.0-SNAPSHOT.jar
 ```
 
-Philter UI listens on port 8081 (set `PORT` to change it), so it can run beside Philter on 8080.
+| Environment variable | Description | Default |
+|----------------------|-------------|---------|
+| `PHILTER_URL` | The address of your Philter instance. | `https://localhost:8080` |
+| `PORT` | The port Philter UI listens on, so it can run beside Philter on 8080. | `8081` |
+| `SESSION_TIMEOUT_MINUTES` | Minutes without interaction before a person is signed out. | `30` |
+
+Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Philter UI verifies Philter's TLS certificate, so a Philter with a self-signed certificate needs that certificate in a truststore passed with `-Djavax.net.ssl.trustStore=<path>`. See the [user guide](docs/docs/index.md).
 
 ## License
 
