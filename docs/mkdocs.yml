@@ -1,0 +1,74 @@
+site_name: Philter UI
+repo_url: https://github.com/philterd/philter-ui
+site_url: https://philterd.github.io/philter-ui/
+edit_uri: tree/main/docs/docs
+copyright: Copyright 2026 Philterd, LLC
+site_author: philterd
+site_description: User guide for Philter UI, the optional web interface for administering Philter.
+use_directory_urls: false
+# Warnings, promoted to errors by strict, so `mkdocs serve` stays usable while builds fail.
+strict: true
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+plugins:
+  - markdownextradata:
+      jinja_options:
+        variable_start_string: "{$"
+        variable_end_string: "}"
+  - search
+  - glightbox:
+      skip_classes:
+        - no-lightbox
+theme:
+  name: material
+  locale: en
+  logo: assets/logo.png
+  font:
+    text: Roboto
+    code: Roboto Mono
+  palette:
+    primary: red
+  features:
+    - content.code.annotate
+extra:
+  philter_ui_version: 4.0.0
+  philter_docs: https://philterd.github.io/philter/latest
+  version:
+    provider: mike
+  homepage: https://www.philterd.ai
+  generator: false
+  social:
+    - icon: material/link
+      link: https://www.philterd.ai
+      name: Philterd Home Page
+    - icon: fontawesome/brands/github
+      link: https://www.github.com/philterd
+      name: Philterd on GitHub
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/company/philterd
+      name: Philterd on LinkedIn
+    - icon: fontawesome/solid/paper-plane
+      link: mailto:support@philterd.ai
+      name: Email Us
+  consent:
+    title: Cookie consent
+    description: >-
+      We use cookies to recognize your repeated visits and preferences, as well
+      as to measure the effectiveness of our documentation and whether users
+      find what they're searching for. With your consent, you're helping us to
+      make our documentation better.
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+nav:
+  - 'Home': index.md
+  - 'Using Philter UI':
+      - 'Dashboard': 'dashboard.md'
+      - 'Signing In': 'sign_in.md'
