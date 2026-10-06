@@ -44,7 +44,6 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.List;
 
 /**
@@ -67,17 +66,17 @@ public class ContextsView extends VerticalLayout {
         setSizeFull();
 
         grid.addColumn(name -> name).setHeader("Context").setResizable(true);
-        grid.addComponentColumn(name -> button("View", VaadinIcon.DOCTOR_BRIEFCASE, "View context " + name,
+        grid.addComponentColumn(name -> ViewSupport.button("View", VaadinIcon.DOCTOR_BRIEFCASE, "View context " + name,
                 () -> openView(name, null))).setHeader("View").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(name -> button(null, VaadinIcon.EDIT, "Edit context " + name,
+        grid.addComponentColumn(name -> ViewSupport.button(null, VaadinIcon.EDIT, "Edit context " + name,
                 () -> openEdit(name))).setHeader("Edit").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(name -> button(null, VaadinIcon.RECYCLE, "Clear context " + name,
+        grid.addComponentColumn(name -> ViewSupport.button(null, VaadinIcon.RECYCLE, "Clear context " + name,
                 () -> openClear(name))).setHeader("Clear").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(name -> button(null, VaadinIcon.TRASH, "Delete context " + name,
+        grid.addComponentColumn(name -> ViewSupport.button(null, VaadinIcon.TRASH, "Delete context " + name,
                 () -> openDelete(name))).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
         // Philter's listing has no total, so the grid pages until a page comes back short.
-        grid.setItems(query -> unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> orEmpty(client.listContexts(null, offset, limit).getContexts()))).stream());
+        grid.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
+                (offset, limit) -> ViewSupport.orEmpty(client.listContexts(null, offset, limit).getContexts()))).stream());
         grid.setSizeFull();
 
         final Span description = new Span("Contexts group documents during redaction and provide features such as "
@@ -89,7 +88,7 @@ public class ContextsView extends VerticalLayout {
 
         final TabSheet tabs = new TabSheet();
         tabs.add("My Contexts", mine);
-        if (user.isAdministrator() && acrossUsersAllowed()) {
+        if (ViewSupport.showAllUsers(user, client)) {
             tabs.add("All Contexts", allContexts());
         }
         tabs.setSizeFull();
@@ -103,26 +102,15 @@ public class ContextsView extends VerticalLayout {
 
     }
 
-    /** Whether Philter allows administrators to act on every user's resources ({@code ADMIN_CROSS_USER_ACCESS_ENABLED}). */
-    private boolean acrossUsersAllowed() {
-        try {
-            return client.getAdminSettings().isCrossUserAccessEnabled();
-        } catch (final ClientException e) {
-            return false;
-        } catch (final IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     private VerticalLayout allContexts() {
 
         final Grid<OwnedName> all = new Grid<>();
         all.addColumn(OwnedName::getName).setHeader("Context").setResizable(true);
         all.addColumn(OwnedName::getOwner).setHeader("Owner").setResizable(true);
-        all.addComponentColumn(row -> button("View", VaadinIcon.DOCTOR_BRIEFCASE, "View context " + row.getName(),
+        all.addComponentColumn(row -> ViewSupport.button("View", VaadinIcon.DOCTOR_BRIEFCASE, "View context " + row.getName(),
                 () -> openView(row.getName(), row.getOwner()))).setHeader("View").setAutoWidth(true).setFlexGrow(0);
-        all.setItems(query -> unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> orEmpty(client.listContextsAcrossUsers(offset, limit).getContexts()))).stream());
+        all.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
+                (offset, limit) -> ViewSupport.orEmpty(client.listContextsAcrossUsers(offset, limit).getContexts()))).stream());
         all.setSizeFull();
 
         final VerticalLayout layout = new VerticalLayout(new Span("All contexts across all users."), all);
@@ -189,7 +177,7 @@ public class ContextsView extends VerticalLayout {
             }
         });
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        dialog.getFooter().add(cancel(dialog), save);
+        dialog.getFooter().add(ViewSupport.cancel(dialog), save);
         dialog.open();
 
     }
@@ -231,7 +219,7 @@ public class ContextsView extends VerticalLayout {
             }
         });
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        dialog.getFooter().add(cancel(dialog), save);
+        dialog.getFooter().add(ViewSupport.cancel(dialog), save);
         dialog.open();
 
     }
@@ -257,10 +245,6 @@ public class ContextsView extends VerticalLayout {
         void run() throws IOException;
     }
 
-    private interface PhilterQuery<T> {
-        T get() throws IOException;
-    }
-
     private void confirm(final String title, final String text, final String action, final PhilterCall call) {
 
         final Dialog dialog = new Dialog();
@@ -275,7 +259,7 @@ public class ContextsView extends VerticalLayout {
             }
         });
         confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
-        dialog.getFooter().add(cancel(dialog), confirm);
+        dialog.getFooter().add(ViewSupport.cancel(dialog), confirm);
         dialog.open();
 
     }
@@ -301,19 +285,6 @@ public class ContextsView extends VerticalLayout {
         return dialog;
     }
 
-    private static Button button(final String text, final VaadinIcon icon, final String tooltip, final Runnable action) {
-        final Button button = new Button(text, icon.create(), e -> action.run());
-        button.setTooltipText(tooltip);
-        button.setAriaLabel(tooltip);
-        return button;
-    }
-
-    private static Button cancel(final Dialog dialog) {
-        final Button cancel = new Button("Cancel", e -> dialog.close());
-        cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        return cancel;
-    }
-
     /** Why Philter refused to create a context, using its {@code reason} to tell the 409s apart. */
     static String createFailure(final ClientException e) {
         final String reason = e.getReason();
@@ -333,18 +304,6 @@ public class ContextsView extends VerticalLayout {
 
     private static String onOff(final boolean value) {
         return value ? "on" : "off";
-    }
-
-    private static <T> List<T> orEmpty(final List<T> items) {
-        return items == null ? List.of() : items;
-    }
-
-    private static <T> T unchecked(final PhilterQuery<T> query) {
-        try {
-            return query.get();
-        } catch (final IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
 }

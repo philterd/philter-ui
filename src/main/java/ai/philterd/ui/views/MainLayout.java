@@ -62,6 +62,7 @@ public class MainLayout extends AppLayout {
         home.addItem(new SideNavItem("Home", HomeView.class, VaadinIcon.HOME.create()));
 
         final SideNav redaction = new SideNav("Redaction");
+        redaction.addItem(new SideNavItem("Custom Lists", CustomListsView.class, VaadinIcon.LIST.create()));
         redaction.addItem(new SideNavItem("Contexts", ContextsView.class, VaadinIcon.RECORDS.create()));
 
         addToDrawer(home, redaction);

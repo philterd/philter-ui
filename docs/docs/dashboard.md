@@ -18,7 +18,18 @@ In **Redaction Policies** you can:
 
 ## Custom Lists
 
-**Custom Lists** manages reusable lists of terms, such as internal project names or employee IDs, that policies can reference to include or exclude many values at once.
+**Custom Lists** manages reusable [custom lists]({$ philter_docs }/redaction/custom_lists.html) of terms, such as internal project names or employee IDs, that policies can reference to include or exclude many values at once.
+
+On the **My Custom Lists** tab you can:
+
+* **See** each list's name, description, and number of terms.
+* **Create** a list with **New Custom List**: a name, an optional description, and the items, one per line. Blank lines are ignored. A list can have up to 100 items of up to 50 characters each. List names are unique per user and cannot contain `/`, `\`, `;`, `%`, or control characters, or be `.` or `..`.
+* **Edit** a list's items and description. The description is kept unless you change it, and clearing the field removes it.
+* **Delete** a list.
+
+A list created before Philter checked names may have a name it no longer allows, such as one containing `/`. Such a list cannot be opened or edited, but it can be deleted.
+
+Administrators also see an **All Custom Lists** tab listing every user's lists with their descriptions, sizes, and owners, when Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` is `true`.
 
 ## Contexts
 
