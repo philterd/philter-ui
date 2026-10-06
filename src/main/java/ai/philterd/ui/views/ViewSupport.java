@@ -16,6 +16,7 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
+import ai.philterd.philter.model.AdminSettings;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.ui.security.PhilterUser;
 import com.vaadin.flow.component.button.Button;
@@ -25,7 +26,12 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Optional;
 
 /** Small pieces shared by the views that list and edit Philter resources. */
 final class ViewSupport {
@@ -35,7 +41,27 @@ final class ViewSupport {
         T get() throws IOException;
     }
 
+    private static final DateTimeFormatter UTC = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'")
+            .withZone(ZoneOffset.UTC);
+
     private ViewSupport() {
+    }
+
+    /**
+     * Philter's admin settings, which say what an administrator may do here, or empty for a person who
+     * is not an administrator or when Philter refuses to share them.
+     */
+    static Optional<AdminSettings> adminSettings(final PhilterUser user, final PhilterClient client) {
+        if (!user.isAdministrator()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.ofNullable(client.getAdminSettings());
+        } catch (final ClientException e) {
+            return Optional.empty();
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**
@@ -43,15 +69,18 @@ final class ViewSupport {
      * Philter allows cross-user access ({@code ADMIN_CROSS_USER_ACCESS_ENABLED}).
      */
     static boolean showAllUsers(final PhilterUser user, final PhilterClient client) {
-        if (!user.isAdministrator()) {
-            return false;
+        return adminSettings(user, client).map(AdminSettings::isCrossUserAccessEnabled).orElse(false);
+    }
+
+    /** A time from Philter in UTC, or Philter's text unchanged if it cannot be read. */
+    static String utc(final String value) {
+        if (value == null || value.isBlank()) {
+            return "";
         }
         try {
-            return client.getAdminSettings().isCrossUserAccessEnabled();
-        } catch (final ClientException e) {
-            return false;
-        } catch (final IOException e) {
-            throw new UncheckedIOException(e);
+            return UTC.format(OffsetDateTime.parse(value));
+        } catch (final DateTimeParseException e) {
+            return value;
         }
     }
 

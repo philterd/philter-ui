@@ -59,14 +59,14 @@ Administrators also see an **All Contexts** tab listing every user's contexts an
 
 ## Redaction Ledgers
 
-**Redaction Ledgers** shows the tamper-evident, hash-chained record of redactions made in any context with the [ledger]({$ philter_docs }/redaction/ledgers.html) enabled. You can:
+**Redaction Ledgers** shows the tamper-evident, hash-chained record of the redactions made in any context with the [ledger]({$ philter_docs }/redaction/ledgers.html) enabled. On the **My Ledgers** tab you can:
 
-* **Browse and search** chains by document ID or filename.
-* **Verify a chain:** open a document's chain to see each recorded redaction (type, replacement, position, and timestamp) and whether the chain is intact.
-* **Export a chain** as JSON for evidence or external review.
-* **Purge entries** (administrators only, and only when Philter's `LEDGER_DELETION_ENABLED` is `true`; it is `false` by default): delete one document's chain, or entries older than a number of days. An active [legal hold]({$ philter_docs }/redaction/legal_holds.html) blocks the deletion and names the hold. See [Settings]({$ philter_docs }/settings.html).
+* **Browse and search** your chains by document ID or filename, with the number of chains found.
+* **View** a chain: each recorded redaction (type, replacement, position, policy and version, and time, in UTC) and whether the chain verifies. **Chain verified** means the hash chain is intact and every signed entry's signature matches. **Chain invalid** means a hash or signature does not match, and the page says which. **Not verified** means Philter could not check the chain at all, for example because an entry could not be read; that is not evidence of tampering, but the chain is not reported as valid, and Philter returns none of its entries. The original redacted values are never shown.
+* **Export** a chain as Philter's JSON export, for evidence or independent verification. The export includes the original redacted values and the signing keys, so store it securely. Each export is recorded in Philter's audit log. If Philter cannot export a chain, for example one it could not check, the page shows Philter's reason.
+* **Delete** a document's chain, or **purge** your completed chains older than a number of days. These appear only for administrators, and only when Philter's `LEDGER_DELETION_ENABLED` is `true`; it is `false` by default. An active [legal hold]({$ philter_docs }/redaction/legal_holds.html) blocks the deletion, and the page shows Philter's message naming the holds. Any active hold on your evidence blocks a purge entirely.
 
-With Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` set to `true`, administrators can also review every user's chains on the **All Ledgers** tab.
+Administrators also see an **All Ledgers** tab listing every user's chains and their owners, including users who have been deactivated, with **View** for each, when Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` is `true`.
 
 ## Legal Holds
 

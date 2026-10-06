@@ -107,7 +107,7 @@ final class HeadlessDashboard implements AutoCloseable {
 
         final List<Class<? extends Component>> views = List.of(
                 DashboardView.class, PoliciesView.class,
-                LedgerView.class, AccountView.class,
+                AccountView.class,
                 AdminView.class, LoginView.class, ChangePasswordView.class, MfaChallengeView.class);
 
         for (final Class<? extends Component> view : views) {

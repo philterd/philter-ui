@@ -46,10 +46,6 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 
 /**
  * The person's legal holds, through Philter's legal holds API. Administrators also see every user's
@@ -63,9 +59,6 @@ public class HoldsView extends VerticalLayout {
     /** Philter's scope types. */
     static final String SCOPE_DOCUMENT_CHAIN = "document_chain";
     static final String SCOPE_USER = "user";
-
-    private static final DateTimeFormatter SET_AT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'")
-            .withZone(ZoneOffset.UTC);
 
     private final transient PhilterClient client;
     private final PhilterUser user;
@@ -83,7 +76,7 @@ public class HoldsView extends VerticalLayout {
         grid.addColumn(hold -> scopeLabel(hold.getScopeType())).setHeader("Scope").setAutoWidth(true);
         grid.addColumn(LegalHoldResponse::getScopeValue).setHeader("Document or User").setAutoWidth(true).setResizable(true);
         grid.addColumn(LegalHoldResponse::getReason).setHeader("Reason").setFlexGrow(1).setResizable(true);
-        grid.addColumn(hold -> setAt(hold.getSetAt())).setHeader("Set At").setAutoWidth(true);
+        grid.addColumn(hold -> ViewSupport.utc(hold.getSetAt())).setHeader("Set At").setAutoWidth(true);
         grid.addComponentColumn(hold -> releaseButton(hold, null)).setAutoWidth(true).setFlexGrow(0);
         // Philter's listing has no total, so the grid pages until a page comes back short.
         grid.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
@@ -121,7 +114,7 @@ public class HoldsView extends VerticalLayout {
         allGrid.addColumn(hold -> scopeLabel(hold.getScopeType())).setHeader("Scope").setAutoWidth(true);
         allGrid.addColumn(LegalHoldResponse::getScopeValue).setHeader("Document or User").setAutoWidth(true).setResizable(true);
         allGrid.addColumn(LegalHoldResponse::getReason).setHeader("Reason").setFlexGrow(1).setResizable(true);
-        allGrid.addColumn(hold -> setAt(hold.getSetAt())).setHeader("Set At").setAutoWidth(true);
+        allGrid.addColumn(hold -> ViewSupport.utc(hold.getSetAt())).setHeader("Set At").setAutoWidth(true);
         allGrid.addComponentColumn(hold -> releaseButton(hold, hold.getOwner())).setAutoWidth(true).setFlexGrow(0);
         allGrid.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
                 (offset, limit) -> ViewSupport.orEmpty(client.getHoldsAcrossUsers(offset, limit)))).stream());
@@ -279,18 +272,6 @@ public class HoldsView extends VerticalLayout {
             return "All of the user's evidence";
         }
         return scopeType;
-    }
-
-    /** When a hold was set, in UTC, or Philter's text unchanged if it cannot be read. */
-    static String setAt(final String value) {
-        if (value == null || value.isBlank()) {
-            return "";
-        }
-        try {
-            return SET_AT.format(Instant.parse(value));
-        } catch (final DateTimeParseException e) {
-            return value;
-        }
     }
 
     private static void invalid(final TextField field, final String message) {

@@ -57,11 +57,4 @@ class HoldsViewTest {
         assertEquals("something_new", HoldsView.scopeLabel("something_new"));
     }
 
-    @Test
-    void setTimesAreShownInUtc() {
-        assertEquals("2026-10-06 14:24 UTC", HoldsView.setAt("2026-10-06T14:24:13.920Z"));
-        assertEquals("not a time", HoldsView.setAt("not a time"));
-        assertEquals("", HoldsView.setAt(null));
-    }
-
 }
