@@ -113,6 +113,8 @@ Administrators also see an **All Legal Holds** tab listing every user's holds an
 
 The **Admin** page appears only for administrators. Philter also checks on every request that the caller is an administrator.
 
+Philter UI reads your role when you sign in. If Philter's settings cannot be read, for example because your role was changed since then, pages say so and hide the tabs listing every user's resources and ledger deletion, and the Admin page's **Settings** tab shows why. Sign in again to pick up a new role.
+
 ### Users
 
 **Users** lists every user, including deactivated ones, with their role, status, password state, and MFA state. A user's **Password** is **Must change** when an administrator set it, and **None (API keys only)** for a user who never signs in.

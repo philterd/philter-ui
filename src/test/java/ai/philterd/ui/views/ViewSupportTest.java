@@ -15,6 +15,9 @@
  */
 package ai.philterd.ui.views;
 
+import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
+import ai.philterd.ui.security.SignInMessages;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,6 +51,17 @@ class ViewSupportTest {
         assertEquals("Contractor IDs", ViewSupport.change("Employee IDs", "Contractor IDs"));
         assertEquals("", ViewSupport.change("Employee IDs", "   "));
         assertEquals("New", ViewSupport.change("", "New"));
+    }
+
+    @Test
+    void anUnreadableSettingsReadSaysWhy() {
+        assertEquals(ViewSupport.SETTINGS_UNREADABLE + " An administrator is required.",
+                ViewSupport.settingsFailure(new ClientException("HTTP 403", 403, "An administrator is required.")));
+        assertEquals(ViewSupport.SETTINGS_UNREADABLE + " Philter answered with HTTP 500.",
+                ViewSupport.settingsFailure(new ClientException("HTTP 500", 500, null)));
+        assertEquals(ViewSupport.SETTINGS_UNREADABLE + " " + SignInMessages.UNAVAILABLE,
+                ViewSupport.settingsFailure(new ServiceUnavailableException("down")));
+        assertEquals("Philter answered with HTTP 502.", ViewSupport.why(new ClientException("HTTP 502", 502, null)));
     }
 
 }

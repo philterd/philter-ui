@@ -351,7 +351,13 @@ public class AdminView extends VerticalLayout {
 
     private Component settingsTab() {
 
-        final AdminSettings settings = ViewSupport.unchecked(client::getAdminSettings);
+        final AdminSettings settings;
+        try {
+            settings = ViewSupport.unchecked(client::getAdminSettings);
+        } catch (final ClientException | ServiceUnavailableException e) {
+            // The rest of the page still works; this tab says why it is empty.
+            return new Paragraph("Philter's settings could not be read. " + ViewSupport.why(e));
+        }
 
         final Checkbox diffuse = new Checkbox("Record PII counts for differential-privacy reporting",
                 settings.isDiffuseCountsEnabled());

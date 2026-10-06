@@ -18,7 +18,9 @@ package ai.philterd.ui.views;
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.AdminSettings;
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.security.PhilterUser;
+import ai.philterd.ui.security.SignInMessages;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -41,6 +43,9 @@ final class ViewSupport {
         T get() throws IOException;
     }
 
+    static final String SETTINGS_UNREADABLE = "Philter's settings could not be read, so tabs listing every user's "
+            + "resources and ledger deletion are hidden.";
+
     private static final DateTimeFormatter UTC = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'")
             .withZone(ZoneOffset.UTC);
 
@@ -49,7 +54,7 @@ final class ViewSupport {
 
     /**
      * Philter's admin settings, which say what an administrator may do here, or empty for a person who
-     * is not an administrator or when Philter refuses to share them.
+     * is not an administrator or when they cannot be read, which is shown to the person.
      */
     static Optional<AdminSettings> adminSettings(final PhilterUser user, final PhilterClient client) {
         if (!user.isAdministrator()) {
@@ -57,11 +62,27 @@ final class ViewSupport {
         }
         try {
             return Optional.ofNullable(client.getAdminSettings());
-        } catch (final ClientException e) {
+        } catch (final ClientException | ServiceUnavailableException e) {
+            // Said rather than silent: without the settings, every-user tabs and ledger deletion are hidden.
+            Notifications.failure(settingsFailure(e));
             return Optional.empty();
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /** What to tell an administrator when Philter's settings cannot be read. */
+    static String settingsFailure(final RuntimeException e) {
+        return SETTINGS_UNREADABLE + " " + why(e);
+    }
+
+    /** Why a request to Philter failed: Philter's explanation, its status, or that it cannot be reached. */
+    static String why(final RuntimeException e) {
+        if (e instanceof ClientException refusal) {
+            return refusal.getErrorMessage() != null ? refusal.getErrorMessage()
+                    : "Philter answered with HTTP " + refusal.getStatusCode() + ".";
+        }
+        return SignInMessages.UNAVAILABLE;
     }
 
     /**
