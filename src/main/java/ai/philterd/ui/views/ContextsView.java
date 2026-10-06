@@ -186,9 +186,7 @@ public class ContextsView extends VerticalLayout {
                 grid.getDataProvider().refreshAll();
                 Notifications.success("Context created.");
             } catch (final ClientException ex) {
-                name.setErrorMessage(PhilterErrors.hasStatus(ex, 409)
-                        ? "You already have a context with this name."
-                        : messageOr(ex, "The context could not be created."));
+                name.setErrorMessage(createFailure(ex));
                 name.setInvalid(true);
             } catch (final IOException | ServiceUnavailableException ex) {
                 Notifications.failure(ex, "The context could not be created.");
@@ -318,6 +316,19 @@ public class ContextsView extends VerticalLayout {
         final Button cancel = new Button("Cancel", e -> dialog.close());
         cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         return cancel;
+    }
+
+    /** Why Philter refused to create a context, using its {@code reason} to tell the 409s apart. */
+    static String createFailure(final ClientException e) {
+        final String reason = PhilterErrors.reason(e);
+        if ("context_limit_reached".equals(reason)) {
+            return "You already have as many contexts as Philter allows. Delete one first.";
+        }
+        // Before Philter gave a reason, a 409 here could only mean a duplicate name.
+        if ("context_exists".equals(reason) || (reason == null && PhilterErrors.hasStatus(e, 409))) {
+            return "You already have a context with this name.";
+        }
+        return messageOr(e, "The context could not be created.");
     }
 
     private static String messageOr(final ClientException e, final String fallback) {

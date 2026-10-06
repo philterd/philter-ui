@@ -30,7 +30,7 @@ In **Redaction Policies** you can:
 On the **My Contexts** tab you can:
 
 * **View** a context: its settings, its number of entries, and the entries counted by filter type. Entries stored without a filter type, which only a [context import]({$ philter_docs }/api_and_sdks/api/contexts_api.html#import-a-mapping-table-into-a-context) creates, are counted on a row labeled **No filter type**. The counts sum to the number of entries.
-* **Create** a context with **New Context**, optionally with entity type disambiguation and the [redaction ledger]({$ philter_docs }/redaction/ledgers.html) enabled. Context names are unique per user.
+* **Create** a context with **New Context**, optionally with entity type disambiguation and the [redaction ledger]({$ philter_docs }/redaction/ledgers.html) enabled. Context names are unique per user, and Philter limits how many contexts each user can have; see [Capacity]({$ philter_docs }/api_and_sdks/api/contexts_api.html#capacity).
 * **Edit** a context's settings. The dialog starts from the context's current settings, and only the settings you change are sent to Philter. Turning the ledger off stops recording redaction evidence for that context.
 * **Clear** a context, removing all of its entries but keeping the context.
 * **Delete** a context. Philter refuses while a document submitted for redaction with that context is still pending or processing.

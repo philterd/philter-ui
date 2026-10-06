@@ -46,20 +46,29 @@ public final class PhilterErrors {
         return actual.isPresent() && actual.getAsInt() == status;
     }
 
-    /** The {@code message} field of Philter's error body, or {@code null}. */
+    /** The {@code message} field of Philter's error body, written for people, or {@code null}. */
     public static String message(final ClientException exception) {
+        return field(exception, "message");
+    }
+
+    /** The {@code reason} field of Philter's error body, for telling refusals apart, or {@code null}. */
+    public static String reason(final ClientException exception) {
+        return field(exception, "reason");
+    }
+
+    private static String field(final ClientException exception, final String name) {
         final Matcher matcher = matcher(exception);
         if (matcher == null || matcher.group(2) == null) {
             return null;
         }
         try {
             final JsonElement body = JsonParser.parseString(matcher.group(2));
-            if (body.isJsonObject() && body.getAsJsonObject().has("message")
-                    && body.getAsJsonObject().get("message").isJsonPrimitive()) {
-                return body.getAsJsonObject().get("message").getAsString();
+            if (body.isJsonObject() && body.getAsJsonObject().has(name)
+                    && body.getAsJsonObject().get(name).isJsonPrimitive()) {
+                return body.getAsJsonObject().get(name).getAsString();
             }
         } catch (final JsonParseException | IllegalStateException e) {
-            // Not JSON, or cut off by the SDK; there is no message to show.
+            // Not JSON, or cut off by the SDK; there is no field to read.
         }
         return null;
     }

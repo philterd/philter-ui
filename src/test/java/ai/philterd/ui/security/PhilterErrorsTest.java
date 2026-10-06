@@ -40,4 +40,13 @@ class PhilterErrorsTest {
         assertEquals(OptionalInt.empty(), PhilterErrors.status(new ClientException("Something else")));
     }
 
+    @Test
+    void readsTheReasonThatTellsRefusalsApart() {
+        final ClientException e = new ClientException("Unknown error: HTTP 409: "
+                + "{\"message\":\"Maximum number of contexts reached.\",\"reason\":\"context_limit_reached\"}");
+        assertEquals("context_limit_reached", PhilterErrors.reason(e));
+        assertEquals("Maximum number of contexts reached.", PhilterErrors.message(e));
+        assertNull(PhilterErrors.reason(new ClientException("Unknown error: HTTP 409: {\"message\":\"Conflict.\"}")));
+    }
+
 }
