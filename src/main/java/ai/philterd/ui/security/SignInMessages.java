@@ -48,10 +48,10 @@ public final class SignInMessages {
             return INVALID;
         }
         if (exception instanceof ClientException client) {
-            if (PhilterErrors.hasStatus(client, 403)) {
+            if (client.getStatusCode() == 403) {
                 return MFA_LOCKED;
             }
-            if (PhilterErrors.hasStatus(client, 404)) {
+            if (client.getStatusCode() == 404) {
                 return DISABLED;
             }
         }

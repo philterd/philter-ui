@@ -109,7 +109,7 @@ final class FakePhilter implements AutoCloseable {
 
     private static String session(final String key, final String username, final boolean passwordChangeRequired,
                                   final boolean mfaEnrollmentRequired) {
-        return "{\"apiKey\":\"" + key + "\",\"username\":\"" + username + "\",\"scopes\":[\"redact\"],"
+        return "{\"id\":\"id-" + username + "\",\"apiKey\":\"" + key + "\",\"username\":\"" + username + "\",\"scopes\":[\"redact\"],"
                 + "\"expiresAt\":\"2026-10-06T02:03:11.000Z\",\"idleExpiresAt\":\"2026-10-05T14:33:11.000Z\","
                 + "\"passwordChangeRequired\":" + passwordChangeRequired
                 + ",\"mfaEnrollmentRequired\":" + mfaEnrollmentRequired + "}";

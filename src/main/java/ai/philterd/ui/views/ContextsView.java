@@ -16,13 +16,13 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
+import ai.philterd.philter.model.ContextDetails;
+import ai.philterd.philter.model.OwnedName;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
-import ai.philterd.ui.model.ContextDetails;
-import ai.philterd.ui.model.ContextNames;
+import ai.philterd.ui.model.ContextCounts;
 import ai.philterd.ui.model.Pages;
 import ai.philterd.ui.security.PhilterClients;
-import ai.philterd.ui.security.PhilterErrors;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.Sessions;
@@ -77,7 +77,7 @@ public class ContextsView extends VerticalLayout {
                 () -> openDelete(name))).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
         // Philter's listing has no total, so the grid pages until a page comes back short.
         grid.setItems(query -> unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> ContextNames.names(client.getContexts(null, offset, limit)))).stream());
+                (offset, limit) -> orEmpty(client.listContexts(null, offset, limit).getContexts()))).stream());
         grid.setSizeFull();
 
         final Span description = new Span("Contexts group documents during redaction and provide features such as "
@@ -103,14 +103,10 @@ public class ContextsView extends VerticalLayout {
 
     }
 
-    /**
-     * Whether Philter lets this administrator list every user's contexts. It refuses with 404 unless
-     * {@code ADMIN_CROSS_USER_ACCESS_ENABLED} is set.
-     */
+    /** Whether Philter allows administrators to act on every user's resources ({@code ADMIN_CROSS_USER_ACCESS_ENABLED}). */
     private boolean acrossUsersAllowed() {
         try {
-            client.getContextsAcrossUsers(0, 1);
-            return true;
+            return client.getAdminSettings().isCrossUserAccessEnabled();
         } catch (final ClientException e) {
             return false;
         } catch (final IOException e) {
@@ -120,13 +116,13 @@ public class ContextsView extends VerticalLayout {
 
     private VerticalLayout allContexts() {
 
-        final Grid<ContextNames.OwnedContext> all = new Grid<>();
-        all.addColumn(ContextNames.OwnedContext::name).setHeader("Context").setResizable(true);
-        all.addColumn(ContextNames.OwnedContext::owner).setHeader("Owner").setResizable(true);
-        all.addComponentColumn(row -> button("View", VaadinIcon.DOCTOR_BRIEFCASE, "View context " + row.name(),
-                () -> openView(row.name(), row.owner()))).setHeader("View").setAutoWidth(true).setFlexGrow(0);
+        final Grid<OwnedName> all = new Grid<>();
+        all.addColumn(OwnedName::getName).setHeader("Context").setResizable(true);
+        all.addColumn(OwnedName::getOwner).setHeader("Owner").setResizable(true);
+        all.addComponentColumn(row -> button("View", VaadinIcon.DOCTOR_BRIEFCASE, "View context " + row.getName(),
+                () -> openView(row.getName(), row.getOwner()))).setHeader("View").setAutoWidth(true).setFlexGrow(0);
         all.setItems(query -> unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> ContextNames.owned(client.getContextsAcrossUsers(offset, limit)))).stream());
+                (offset, limit) -> orEmpty(client.listContextsAcrossUsers(offset, limit).getContexts()))).stream());
         all.setSizeFull();
 
         final VerticalLayout layout = new VerticalLayout(new Span("All contexts across all users."), all);
@@ -147,17 +143,17 @@ public class ContextsView extends VerticalLayout {
         dialog.setWidth("500px");
         dialog.add(new H3("Context"));
         dialog.add(new Paragraph("Filter type counts for context: " + name + (owner == null ? "" : " (owner: " + owner + ")")));
-        dialog.add(new Paragraph("Entity type disambiguation is " + onOff(details.entityTypeDisambiguation())
-                + ". The redaction ledger is " + onOff(details.ledger()) + "."));
+        dialog.add(new Paragraph("Entity type disambiguation is " + onOff(details.isEntityTypeDisambiguation())
+                + ". The redaction ledger is " + onOff(details.isLedger()) + "."));
 
-        if (details.size() == 0) {
+        if (details.getSize() == 0) {
             dialog.add(new Paragraph("No entries found in this context."));
         } else {
-            dialog.add(new Paragraph(details.size() == 1 ? "1 entry." : details.size() + " entries."));
-            final Grid<ContextDetails.Count> counts = new Grid<>();
-            counts.addColumn(ContextDetails.Count::label).setHeader("Filter Type").setSortable(true);
-            counts.addColumn(ContextDetails.Count::count).setHeader("Count").setSortable(true);
-            counts.setItems(details.counts());
+            dialog.add(new Paragraph(details.getSize() == 1 ? "1 entry." : details.getSize() + " entries."));
+            final Grid<ContextCounts.Count> counts = new Grid<>();
+            counts.addColumn(ContextCounts.Count::label).setHeader("Filter Type").setSortable(true);
+            counts.addColumn(ContextCounts.Count::count).setHeader("Count").setSortable(true);
+            counts.setItems(ContextCounts.of(details));
             counts.setAllRowsVisible(true);
             dialog.add(counts);
         }
@@ -211,17 +207,17 @@ public class ContextsView extends VerticalLayout {
         nameField.setValue(name);
         nameField.setReadOnly(true);
         final Checkbox disambiguation = new Checkbox("Enable entity type disambiguation for this context.",
-                details.entityTypeDisambiguation());
-        final Checkbox ledger = new Checkbox("Enable the redaction ledger for this context.", details.ledger());
-        ledger.addValueChangeListener(e -> ledger.setHelperText(details.ledger() && !e.getValue()
+                details.isEntityTypeDisambiguation());
+        final Checkbox ledger = new Checkbox("Enable the redaction ledger for this context.", details.isLedger());
+        ledger.addValueChangeListener(e -> ledger.setHelperText(details.isLedger() && !e.getValue()
                 ? "Turning the ledger off stops recording redaction evidence for this context." : null));
 
         final Dialog dialog = settingsDialog("Edit Context", nameField, disambiguation, ledger);
 
         final Button save = new Button("Save", e -> {
-            final Boolean newDisambiguation = disambiguation.getValue() == details.entityTypeDisambiguation()
+            final Boolean newDisambiguation = disambiguation.getValue() == details.isEntityTypeDisambiguation()
                     ? null : disambiguation.getValue();
-            final Boolean newLedger = ledger.getValue() == details.ledger() ? null : ledger.getValue();
+            final Boolean newLedger = ledger.getValue() == details.isLedger() ? null : ledger.getValue();
             if (newDisambiguation == null && newLedger == null) {
                 dialog.close();
                 return;
@@ -287,7 +283,7 @@ public class ContextsView extends VerticalLayout {
     /** The context's details, or {@code null} after telling the person why they could not be read. */
     private ContextDetails details(final String name, final String owner) {
         try {
-            return ContextDetails.fromJson(client.getContext(name, owner));
+            return client.getContextDetails(name, owner);
         } catch (final ClientException | ServiceUnavailableException | IOException e) {
             Notifications.failure(e, "The context could not be read.");
             return null;
@@ -320,24 +316,27 @@ public class ContextsView extends VerticalLayout {
 
     /** Why Philter refused to create a context, using its {@code reason} to tell the 409s apart. */
     static String createFailure(final ClientException e) {
-        final String reason = PhilterErrors.reason(e);
+        final String reason = e.getReason();
         if ("context_limit_reached".equals(reason)) {
             return "You already have as many contexts as Philter allows. Delete one first.";
         }
         // Before Philter gave a reason, a 409 here could only mean a duplicate name.
-        if ("context_exists".equals(reason) || (reason == null && PhilterErrors.hasStatus(e, 409))) {
+        if ("context_exists".equals(reason) || (reason == null && e.getStatusCode() == 409)) {
             return "You already have a context with this name.";
         }
         return messageOr(e, "The context could not be created.");
     }
 
     private static String messageOr(final ClientException e, final String fallback) {
-        final String message = PhilterErrors.message(e);
-        return message == null ? fallback : message;
+        return e.getErrorMessage() == null ? fallback : e.getErrorMessage();
     }
 
     private static String onOff(final boolean value) {
         return value ? "on" : "off";
+    }
+
+    private static <T> List<T> orEmpty(final List<T> items) {
+        return items == null ? List.of() : items;
     }
 
     private static <T> T unchecked(final PhilterQuery<T> query) {

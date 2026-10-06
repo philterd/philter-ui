@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ContextsViewTest {
 
     private static ClientException conflict(final String reason, final String message) {
-        return new ClientException("Unknown error: HTTP 409: {\"message\":\"" + message + "\",\"reason\":\"" + reason + "\"}");
+        return new ClientException("HTTP 409", 409, message, reason);
     }
 
     @Test
@@ -41,15 +41,15 @@ class ContextsViewTest {
     @Test
     void aConflictWithoutAReasonIsADuplicateName() {
         assertEquals("You already have a context with this name.", ContextsView.createFailure(
-                new ClientException("Unknown error: HTTP 409: {\"message\":\"Context already exists.\"}")));
+                new ClientException("HTTP 409", 409, "Context already exists.")));
     }
 
     @Test
     void anyOtherRefusalShowsPhiltersMessage() {
         assertEquals("Context name cannot be blank.", ContextsView.createFailure(
-                new ClientException("Unknown error: HTTP 400: {\"message\":\"Context name cannot be blank.\"}")));
+                new ClientException("HTTP 400", 400, "Context name cannot be blank.")));
         assertEquals("The context could not be created.",
-                ContextsView.createFailure(new ClientException("Unknown error: HTTP 500")));
+                ContextsView.createFailure(new ClientException("HTTP 500", 500, null)));
     }
 
 }

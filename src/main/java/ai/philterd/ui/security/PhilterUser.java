@@ -38,15 +38,17 @@ public final class PhilterUser implements Serializable {
     private final boolean administrator;
     private final Restriction restriction;
     private final String sessionKey;
+    private final String sessionKeyId;
     private final AtomicBoolean ended = new AtomicBoolean();
     private transient volatile PhilterClient client;
 
     public PhilterUser(final String username, final boolean administrator, final Restriction restriction,
-                       final String sessionKey) {
+                       final String sessionKey, final String sessionKeyId) {
         this.username = username;
         this.administrator = administrator;
         this.restriction = restriction;
         this.sessionKey = sessionKey;
+        this.sessionKeyId = sessionKeyId;
     }
 
     public String getUsername() {
@@ -59,6 +61,14 @@ public final class PhilterUser implements Serializable {
 
     public Restriction getRestriction() {
         return restriction;
+    }
+
+    /**
+     * The id Philter gave the session key, which identifies it among the person's API keys. Not a
+     * credential, but like the key it is not shown in the browser or logged.
+     */
+    public String getSessionKeyId() {
+        return sessionKeyId;
     }
 
     String sessionKey() {
@@ -79,7 +89,7 @@ public final class PhilterUser implements Serializable {
 
     @Override
     public String toString() {
-        // Never include the session key: Spring Security logs principals at debug level.
+        // Never include the session key or its id: Spring Security logs principals at debug level.
         return "PhilterUser[" + username + ", administrator=" + administrator + ", restriction=" + restriction + "]";
     }
 

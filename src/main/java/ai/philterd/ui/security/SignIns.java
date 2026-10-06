@@ -59,12 +59,12 @@ public class SignIns {
 
         if (response.isPasswordChangeRequired()) {
             return token(new PhilterUser(response.getUsername(), false, PhilterUser.Restriction.PASSWORD_CHANGE,
-                    response.getApiKey()), Roles.PASSWORD_CHANGE);
+                    response.getApiKey(), response.getId()), Roles.PASSWORD_CHANGE);
         }
 
         if (response.isMfaEnrollmentRequired()) {
             return token(new PhilterUser(response.getUsername(), false, PhilterUser.Restriction.MFA_ENROLLMENT,
-                    response.getApiKey()), Roles.MFA_ENROLLMENT);
+                    response.getApiKey(), response.getId()), Roles.MFA_ENROLLMENT);
         }
 
         // The session key holds every scope; the user's Philter role decides administrator access.
@@ -74,13 +74,13 @@ public class SignIns {
         } catch (final IOException | RuntimeException e) {
             LOGGER.warn("Signed in {} but could not read their role: {}", response.getUsername(), e.getMessage());
             revoker.revoke(new PhilterUser(response.getUsername(), false, PhilterUser.Restriction.NONE,
-                    response.getApiKey()));
+                    response.getApiKey(), response.getId()));
             throw e;
         }
 
         final boolean administrator = "admin".equals(user.getRole());
         final PhilterUser principal = new PhilterUser(user.getUsername(), administrator,
-                PhilterUser.Restriction.NONE, response.getApiKey());
+                PhilterUser.Restriction.NONE, response.getApiKey(), response.getId());
 
         return administrator ? token(principal, Roles.USER, Roles.ADMIN) : token(principal, Roles.USER);
 

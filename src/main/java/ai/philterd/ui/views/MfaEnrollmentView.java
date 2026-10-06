@@ -20,7 +20,6 @@ import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.security.Notice;
 import ai.philterd.ui.security.PhilterClients;
-import ai.philterd.ui.security.PhilterErrors;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.SignInMessages;
@@ -95,7 +94,7 @@ public class MfaEnrollmentView extends StepLayout {
             qrCode.setAlt("QR code for your authenticator app");
             secret.setText("Setup key: " + grouped(enrollment.getSecret()));
         } catch (final ClientException e) {
-            showProblem(PhilterErrors.hasStatus(e, 409)
+            showProblem(e.getStatusCode() == 409
                     ? "Multi-factor authentication could not be started. Ask an administrator whether it is available."
                     : "Multi-factor authentication could not be started.");
         } catch (final IOException | ServiceUnavailableException e) {
@@ -114,10 +113,10 @@ public class MfaEnrollmentView extends StepLayout {
             // Philter revoked the session key; the person signs in again, this time with a code.
             sessions.end(Notice.MFA_ENROLLED);
         } catch (final ClientException e) {
-            if (PhilterErrors.hasStatus(e, 400)) {
+            if (e.getStatusCode() == 400) {
                 code.setErrorMessage("That code is not valid. Check your authenticator app and try again.");
                 code.setInvalid(true);
-            } else if (PhilterErrors.hasStatus(e, 409)) {
+            } else if (e.getStatusCode() == 409) {
                 // Enrollment was completed, or MFA turned off, by another request meanwhile.
                 sessions.end(Notice.ENDED);
             } else {

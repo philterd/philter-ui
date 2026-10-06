@@ -19,7 +19,6 @@ import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.security.Notice;
 import ai.philterd.ui.security.PhilterClients;
-import ai.philterd.ui.security.PhilterErrors;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.SignInMessages;
@@ -98,12 +97,12 @@ public class ChangePasswordView extends StepLayout {
             // Philter revoked the session key; the person signs in again with the new password.
             sessions.end(Notice.PASSWORD_CHANGED);
         } catch (final ClientException e) {
-            if (PhilterErrors.hasStatus(e, 403)) {
+            if (e.getStatusCode() == 403) {
                 invalid(current, "The current password is not correct.");
-            } else if (PhilterErrors.hasStatus(e, 400)) {
-                final String message = PhilterErrors.message(e);
-                invalid(password, message == null ? "Philter did not accept the new password." : message);
-            } else if (PhilterErrors.hasStatus(e, 409)) {
+            } else if (e.getStatusCode() == 400) {
+                invalid(password, e.getErrorMessage() == null
+                        ? "Philter did not accept the new password." : e.getErrorMessage());
+            } else if (e.getStatusCode() == 409) {
                 // The password was changed by another request meanwhile.
                 sessions.end(Notice.ENDED);
             } else {

@@ -61,6 +61,7 @@ class PhilterAuthenticationProviderTest {
         assertEquals("jordan", user.getUsername());
         assertFalse(user.isAdministrator());
         assertEquals("sk_jordan", user.sessionKey());
+        assertEquals("id-jordan", user.getSessionKeyId());
         assertNull(authentication.getCredentials());
     }
 
@@ -85,6 +86,7 @@ class PhilterAuthenticationProviderTest {
         final Authentication authentication = signIns.completeSignIn(new PendingMfa("mfa", "challenge-1"), "123456");
         assertEquals(Set.of("ROLE_USER"), roles(authentication));
         assertEquals("sk_mfa", ((PhilterUser) authentication.getPrincipal()).sessionKey());
+        assertEquals("id-mfa", ((PhilterUser) authentication.getPrincipal()).getSessionKeyId());
     }
 
     @Test
@@ -92,6 +94,7 @@ class PhilterAuthenticationProviderTest {
         final Authentication authentication = signIn("newpassword");
         assertEquals(Set.of("ROLE_PASSWORD_CHANGE"), roles(authentication));
         assertEquals(PhilterUser.Restriction.PASSWORD_CHANGE, ((PhilterUser) authentication.getPrincipal()).getRestriction());
+        assertEquals("id-newpassword", ((PhilterUser) authentication.getPrincipal()).getSessionKeyId());
     }
 
     @Test

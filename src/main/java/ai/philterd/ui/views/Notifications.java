@@ -17,7 +17,6 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
-import ai.philterd.ui.security.PhilterErrors;
 import ai.philterd.ui.security.SignInMessages;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -42,8 +41,8 @@ final class Notifications {
     static void failure(final Exception exception, final String fallback) {
         if (exception instanceof IOException || exception instanceof ServiceUnavailableException) {
             failure(SignInMessages.UNAVAILABLE);
-        } else if (exception instanceof ClientException client && PhilterErrors.message(client) != null) {
-            failure(PhilterErrors.message(client));
+        } else if (exception instanceof ClientException client && client.getErrorMessage() != null) {
+            failure(client.getErrorMessage());
         } else {
             failure(fallback);
         }

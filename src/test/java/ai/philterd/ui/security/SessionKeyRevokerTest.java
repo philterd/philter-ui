@@ -28,7 +28,7 @@ class SessionKeyRevokerTest {
     void revokesAKeyOnce() throws Exception {
         try (FakePhilter philter = new FakePhilter()) {
             final SessionKeyRevoker revoker = new SessionKeyRevoker(new PhilterClients(philter.url()));
-            final PhilterUser user = new PhilterUser("jordan", false, PhilterUser.Restriction.NONE, "sk_jordan");
+            final PhilterUser user = new PhilterUser("jordan", false, PhilterUser.Restriction.NONE, "sk_jordan", "id-jordan");
             revoker.revoke(user);
             revoker.revoke(user);
             assertEquals(List.of("sk_jordan"), philter.revokedKeys);
@@ -39,16 +39,17 @@ class SessionKeyRevokerTest {
     void anAlreadyRejectedKeyIsNotAnError() throws Exception {
         try (FakePhilter philter = new FakePhilter()) {
             final SessionKeyRevoker revoker = new SessionKeyRevoker(new PhilterClients(philter.url()));
-            final PhilterUser user = new PhilterUser("jordan", false, PhilterUser.Restriction.NONE, "sk_expired");
+            final PhilterUser user = new PhilterUser("jordan", false, PhilterUser.Restriction.NONE, "sk_expired", "id-expired");
             revoker.revoke(user);
             assertFalse(user.markEnded());
         }
     }
 
     @Test
-    void theSessionKeyIsNotInThePrincipalsDescription() {
-        final PhilterUser user = new PhilterUser("jordan", true, PhilterUser.Restriction.NONE, "sk_secret");
+    void theSessionKeyAndItsIdAreNotInThePrincipalsDescription() {
+        final PhilterUser user = new PhilterUser("jordan", true, PhilterUser.Restriction.NONE, "sk_secret", "id-secret");
         assertFalse(user.toString().contains("sk_secret"));
+        assertFalse(user.toString().contains("id-secret"));
     }
 
 }
