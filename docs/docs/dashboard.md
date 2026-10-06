@@ -10,11 +10,19 @@ The **Dashboard** home page submits text or a PDF to Philter with a policy you c
 
 ## Policies
 
-In **Redaction Policies** you can:
+**Redaction Policies** manages the [policies]({$ philter_docs }/policies/filter_policies.html) that decide what Philter detects and how it redacts it. On the **My Policies** tab you can:
 
-* **Create and edit policies** as JSON, or build one in the [policy editor](https://policies.philterd.ai/) and paste it in. Philter validates a policy when it is saved.
-* **Copy a managed policy.** Philter ships pre-configured policies for common PII, financial PII, and healthcare PHI. Managed policies cannot be changed; copy one to make your own version.
-* **Manage Always/Never Redact Lists**: terms that are always or never redacted across all of your policies, on their own [Always/Never Redact Lists](#alwaysnever-redact-lists) page.
+* **Edit** a policy's JSON, description, and notes. Build a policy in the [policy editor](https://policies.philterd.ai/) and paste its JSON in, or edit the JSON directly. Philter validates the policy when it is saved and the page shows its reason if it refuses. Saving changed JSON creates a new revision; changing only the description or notes does not. A description can have up to 200 characters and notes up to 1000.
+* **Create** a policy with **New Policy**, starting from a template. Policy names can have up to 50 letters, digits, dashes, and underscores, cannot start with `managed_`, and are unique per user.
+* **Duplicate** a policy under a new name.
+* **Delete** a policy. Philter keeps its version history. The `default` policy cannot be deleted.
+* **See a policy's history**: view any retained revision, compare two revisions with each change's value before and after, or roll back to an earlier revision. A rollback saves the earlier content as a new revision; no revision is removed.
+
+Terms that are always or never redacted across all of your policies are on the [Always/Never Redact Lists](#alwaysnever-redact-lists) page.
+
+The **Managed Policies** tab lists Philter's ready-made policies, such as common PII, financial PII, and healthcare PHI, with their descriptions. You can view them and create your own policy from one; managed policies themselves cannot be changed or deleted.
+
+Administrators also see an **All Policies** tab listing every user's policies and their owners, including users who have been deactivated, and can view each policy's JSON, when Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` is `true`.
 
 ## Custom Lists
 

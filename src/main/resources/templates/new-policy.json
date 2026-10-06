@@ -1,0 +1,19 @@
+{
+  "identifiers": {
+    "person": {
+      "phEyeFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    },
+    "ssn": {
+      "ssnFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    },
+    "emailAddress": {
+      "emailAddressFilterStrategies": [
+        { "strategy": "REDACT" }
+      ]
+    }
+  }
+}

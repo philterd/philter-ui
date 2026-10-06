@@ -43,18 +43,4 @@ class CustomListsViewTest {
         assertNull(CustomListsView.itemsProblem(List.of("x".repeat(CustomListsView.MAXIMUM_ITEM_LENGTH))));
     }
 
-    @Test
-    void anUnchangedDescriptionIsLeftOutSoPhilterKeepsIt() {
-        assertNull(CustomListsView.descriptionChange("Employee IDs", "Employee IDs"));
-        assertNull(CustomListsView.descriptionChange("Employee IDs", " Employee IDs "));
-        assertNull(CustomListsView.descriptionChange(null, ""));
-    }
-
-    @Test
-    void aChangedDescriptionIsSentAndAClearedOneIsSentEmpty() {
-        assertEquals("Contractor IDs", CustomListsView.descriptionChange("Employee IDs", "Contractor IDs"));
-        assertEquals("", CustomListsView.descriptionChange("Employee IDs", "   "));
-        assertEquals("New", CustomListsView.descriptionChange("", "New"));
-    }
-
 }

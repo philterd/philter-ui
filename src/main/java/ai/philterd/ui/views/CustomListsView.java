@@ -225,7 +225,7 @@ public class CustomListsView extends VerticalLayout {
                 return;
             }
             try {
-                client.replaceList(listName, descriptionChange(originalDescription, description.getValue()), values);
+                client.replaceList(listName, ViewSupport.change(originalDescription, description.getValue()), values);
                 dialog.close();
                 refresh();
                 Notifications.success("List updated.");
@@ -285,15 +285,6 @@ public class CustomListsView extends VerticalLayout {
             }
         }
         return null;
-    }
-
-    /**
-     * The description to send when replacing a list: {@code null} keeps Philter's, an empty string clears
-     * it, and anything else replaces it.
-     */
-    static String descriptionChange(final String original, final String edited) {
-        final String value = edited == null ? "" : edited.trim();
-        return value.equals(original == null ? "" : original.trim()) ? null : value;
     }
 
     private static String blankToNull(final String value) {

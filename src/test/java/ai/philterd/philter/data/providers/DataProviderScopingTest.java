@@ -16,12 +16,8 @@
 package ai.philterd.philter.data.providers;
 
 import ai.philterd.philter.data.entities.ApiKeyEntity;
-import ai.philterd.philter.data.entities.PolicyEntity;
 import ai.philterd.philter.data.services.ApiKeyDataService;
-import ai.philterd.philter.data.services.PolicyDataService;
 import com.vaadin.flow.data.provider.Query;
-import com.vaadin.flow.data.provider.QuerySortOrder;
-import com.vaadin.flow.data.provider.SortDirection;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,7 +26,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -58,45 +53,6 @@ class DataProviderScopingTest {
     }
 
     @Test
-    @DisplayName("Policies are paged and counted for their owner alone")
-    void policiesAreScopedToTheirOwner() {
-
-        final PolicyDataService service = mock(PolicyDataService.class);
-        when(service.findAll(any(), anyInt(), anyInt(), anyBoolean())).thenReturn(List.of());
-        when(service.count(any())).thenReturn(0);
-
-        final PolicyEntityDataProvider provider = new PolicyEntityDataProvider(OWNER, service);
-
-        provider.fetch(firstPage()).count();
-        provider.size(firstPage());
-
-        verify(service).findAll(OWNER, 0, 25, false);
-        verify(service).count(OWNER);
-        verify(service, never()).findAll(eq(SOMEONE_ELSE), anyInt(), anyInt(), anyBoolean());
-        verify(service, never()).count(SOMEONE_ELSE);
-
-    }
-
-    @Test
-    @DisplayName("A sorted policy grid maps the column to its stored field, still for its owner")
-    void policySortingMapsThePropertyToTheStoredField() {
-
-        final PolicyDataService service = mock(PolicyDataService.class);
-        when(service.findAll(any(), anyInt(), anyInt(), anyBoolean(), any(), anyBoolean()))
-                .thenReturn(List.of());
-
-        final PolicyEntityDataProvider provider = new PolicyEntityDataProvider(OWNER, service);
-
-        provider.fetch(new Query<PolicyEntity, Void>(0, 25,
-                List.of(new QuerySortOrder("lastUpdatedTimestamp", SortDirection.DESCENDING)), null, null)).count();
-
-        // The grid sorts on the Java property; the collection stores it under another name, and a
-        // mapping that stopped translating would sort on a field that does not exist.
-        verify(service).findAll(OWNER, 0, 25, false, "last_updated_timestamp", false);
-
-    }
-
-    @Test
     @DisplayName("API keys are paged and counted for their owner alone")
     void apiKeysAreScopedToTheirOwner() {
 
@@ -113,20 +69,6 @@ class DataProviderScopingTest {
         verify(service).count(OWNER);
         verify(service, never()).findAll(eq(SOMEONE_ELSE), anyInt(), anyInt());
         verify(service, never()).count(SOMEONE_ELSE);
-
-    }
-
-    @Test
-    @DisplayName("A page beyond the first carries its offset through unchanged")
-    void offsetAndLimitReachTheService() {
-
-        final PolicyDataService service = mock(PolicyDataService.class);
-        when(service.findAll(any(), anyInt(), anyInt(), anyBoolean())).thenReturn(List.of());
-
-        new PolicyEntityDataProvider(OWNER, service)
-                .fetch(new Query<PolicyEntity, Void>(50, 25, List.of(), null, null)).count();
-
-        verify(service).findAll(OWNER, 50, 25, false);
 
     }
 

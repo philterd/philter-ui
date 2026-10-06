@@ -84,6 +84,15 @@ final class ViewSupport {
         }
     }
 
+    /**
+     * What to send for a text field Philter keeps unless told otherwise: {@code null} when unchanged, so
+     * Philter keeps its value, an empty string to clear it, or the new text.
+     */
+    static String change(final String original, final String edited) {
+        final String value = edited == null ? "" : edited.trim();
+        return value.equals(original == null ? "" : original.trim()) ? null : value;
+    }
+
     /** A grid row's button, labeled for screen readers with its tooltip. */
     static Button button(final String text, final VaadinIcon icon, final String tooltip, final Runnable action) {
         final Button button = new Button(text, icon.create(), e -> action.run());

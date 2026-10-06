@@ -106,7 +106,7 @@ final class HeadlessDashboard implements AutoCloseable {
         final RouteConfiguration configuration = RouteConfiguration.forRegistry(registry);
 
         final List<Class<? extends Component>> views = List.of(
-                DashboardView.class, PoliciesView.class,
+                DashboardView.class,
                 AccountView.class,
                 AdminView.class, LoginView.class, ChangePasswordView.class, MfaChallengeView.class);
 

@@ -18,6 +18,7 @@ package ai.philterd.ui.views;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class ViewSupportTest {
 
@@ -33,6 +34,20 @@ class ViewSupportTest {
         assertEquals("not a time", ViewSupport.utc("not a time"));
         assertEquals("", ViewSupport.utc(null));
         assertEquals("", ViewSupport.utc(" "));
+    }
+
+    @Test
+    void anUnchangedFieldIsLeftOutSoPhilterKeepsIt() {
+        assertNull(ViewSupport.change("Employee IDs", "Employee IDs"));
+        assertNull(ViewSupport.change("Employee IDs", " Employee IDs "));
+        assertNull(ViewSupport.change(null, ""));
+    }
+
+    @Test
+    void aChangedFieldIsSentAndAClearedOneIsSentEmpty() {
+        assertEquals("Contractor IDs", ViewSupport.change("Employee IDs", "Contractor IDs"));
+        assertEquals("", ViewSupport.change("Employee IDs", "   "));
+        assertEquals("New", ViewSupport.change("", "New"));
     }
 
 }
