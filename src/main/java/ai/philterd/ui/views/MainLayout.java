@@ -16,6 +16,7 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.ui.security.Notice;
+import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.Sessions;
 import com.vaadin.flow.component.applayout.AppLayout;
@@ -73,6 +74,12 @@ public class MainLayout extends AppLayout {
         account.addItem(new SideNavItem("My Account", AccountView.class, VaadinIcon.USER.create()));
 
         addToDrawer(home, redaction, account);
+
+        if (Sessions.currentUser().map(PhilterUser::isAdministrator).orElse(false)) {
+            final SideNav administration = new SideNav("Administration");
+            administration.addItem(new SideNavItem("Admin", AdminView.class, VaadinIcon.USER_STAR.create()));
+            addToDrawer(administration);
+        }
 
     }
 

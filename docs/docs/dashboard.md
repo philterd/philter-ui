@@ -111,27 +111,42 @@ Administrators also see an **All Legal Holds** tab listing every user's holds an
 
 ## Administration
 
-The **Admin** section appears only for administrators.
+The **Admin** page appears only for administrators. Philter also checks on every request that the caller is an administrator.
 
 ### Users
 
-The Users grid lists all users, including deactivated ones.
+**Users** lists every user, including deactivated ones, with their role, status, password state, and MFA state. A user's **Password** is **Must change** when an administrator set it, and **None (API keys only)** for a user who never signs in.
 
-* **Add a user** with a username, an optional email address, a role (`admin` or `user`), and a temporary password. The user sets their own password at first sign-in. Leave the password empty for an account that will use API keys only and never sign in.
-* **Reset a password.** The user must set a new one at their next sign-in, and their current sessions end.
-* **Sign a user out everywhere** by revoking their session keys.
-* **Set a role** to `admin` or `user`. You cannot change your own role, and the last active administrator cannot be demoted.
-* **Unlock MFA** or **Disable MFA** for a user who is locked out or has lost their authenticator. See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
-* **Deactivate a user.** Users are deactivated, never deleted. A deactivated user cannot sign in and their API keys stop working, but their data, including policies and redaction ledger, is kept. You cannot deactivate your own account or the last active administrator.
-* **Reactivate a user** to restore sign-in and API access with nothing lost.
+* **Add User** takes a username, an optional email address, a role (`user` or `admin`), and an optional temporary password; **Generate** fills in a random one to copy. A user given a password must change it at first sign-in. Leave the password empty for a user who will use API keys only. Philter creates a default policy and context for the new user.
+
+Each user's actions menu has:
+
+* **Reset password**: sets a temporary password. The user's sign-in sessions end and they must choose a new password at their next sign-in; their API keys keep working. See [password requirements](sign_in.md#password-requirements).
+* **Set role** to `user` or `admin`. Philter refuses to demote the last active administrator.
+* **Sign out everywhere**: ends every sign-in session the user has. Their API keys keep working.
+* **Unlock MFA** for a user locked out after too many wrong codes. Their enrollment is unchanged.
+* **Disable MFA** for a user who has lost their authenticator. They set MFA up again at their next sign-in if it is required, and otherwise sign in with their password alone until they do. See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
+* **Deactivate**: the user cannot sign in and their API keys stop working, but the user and their data, including policies and redaction ledgers, are kept. Users are deactivated, never deleted. Philter refuses to deactivate the last active administrator.
+* **Reactivate** restores sign-in and API access with nothing lost.
+
+Your own row offers only **Unlock MFA**: change your password, sign out your other sessions, and remove your MFA on [My Account](#my-account). You cannot change your own role or deactivate yourself here. To reset a deactivated user's password or set their role, reactivate them first.
 
 ### Settings
 
-**Admin Settings** changes deployment-wide [settings]({$ philter_docs }/api_and_sdks/api/settings_api.html), including whether MFA is available or required.
+**Settings** changes Philter's deployment-wide [settings]({$ philter_docs }/api_and_sdks/api/settings_api.html). **Save Settings** sends only the settings you changed.
+
+* **Multi-factor authentication**: whether users may set up MFA, and whether every user must. Requiring it needs it to be available.
+* **Output signing**: whether Philter signs every text redaction and explain response.
+* **Webhook destination allowlist**: the hostnames, IP addresses, and CIDR ranges a user's [webhook](#my-account) may point to. Empty allows any public address and refuses private, loopback, and link-local ones.
+* **PII counts**: whether Philter records PII counts for differential-privacy reporting, and whether it publishes them to Phield, with the Phield URL, source ID, organization, and API key. Philter never returns the Phield API key: type a new one to replace it, or tick **Remove the Phield API key**. Philter warns when the key would be sent over `http`.
+
+Cross-user access by administrators (`ADMIN_CROSS_USER_ACCESS_ENABLED`) and ledger deletion (`LEDGER_DELETION_ENABLED`) are set when Philter starts, so the page shows them but cannot change them. Each Philter instance caches the settings for up to `ADMIN_SETTINGS_CACHE_TTL_SECONDS`, so other instances pick up a change when their cache expires.
+
+**Signing Key** shows the active output signing key's ID and SHA-256 fingerprint. **Regenerate Signing Key** makes a new key the active one; earlier keys stay available, so signatures and ledger entries made with them still verify. When the key is managed with `PHILTER_SIGNING_KEY_PATH`, regenerating is disabled: replace that file and restart every Philter instance instead.
 
 ### Audit Log
 
-**Audit Log** exports Philter's [audit log]({$ philter_docs }/auditing.html) as CSV for a range of whole days, up to 31 days per export. Audit events never contain sensitive values.
+**Audit Log** exports Philter's [audit log]({$ philter_docs }/auditing.html) as one CSV file for a range of whole days, up to 31 days, most recent first. The days are read in Philter's time zone, and times in the file are in UTC. An export holds at most 100,000 events; when a range has more, Philter UI says so, and a shorter range gets the rest. The export is itself recorded in the audit log. Audit events never contain sensitive values.
 
 ## Creating API keys
 

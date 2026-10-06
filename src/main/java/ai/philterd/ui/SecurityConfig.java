@@ -38,7 +38,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**", "/themes/**", "/icons/**", "/favicon.ico").permitAll())
+                        .requestMatchers("/themes/**", "/icons/**", "/favicon.ico").permitAll())
                 .with(vaadin(), vaadin -> vaadin
                         .loginView(SignInView.class)
                         .defaultSuccessUrl("/continue", true));

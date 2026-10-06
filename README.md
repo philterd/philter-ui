@@ -4,12 +4,9 @@ An optional web UI for administering [Philter](https://github.com/philterd/philt
 
 ## Status
 
-The UI is being moved out of Philter in two steps.
+The Vaadin dashboard was moved here from `philterd/philter` at commit `c558c65` and has since been ported to Philter's REST API through [philter-sdk-java](https://github.com/philterd/philter-sdk-java). Every page works through the API with the signed-in person's session key; none reads Philter's database or services.
 
-1. **Done:** the Vaadin dashboard was moved here from `philterd/philter` at commit `c558c65`. Its views still call Philter's internal services and entities, so they are kept under `src/main/java/ai/philterd/philter/` (and their tests under `src/test/java/ai/philterd/philter/`) and excluded from compilation in `pom.xml`. The application that builds today, in `ai.philterd.ui`, signs people in through Philter (password, MFA, forced password change, and MFA enrollment) and has ported the Dashboard, Redaction Policies, Custom Lists, Always/Never Redact Lists, Contexts, Redaction Ledgers, Legal Holds, and My Account pages; the other views are still to be ported.
-2. **Next:** each view is ported to Philter's REST API through [philter-sdk-java](https://github.com/philterd/philter-sdk-java), moved into `ai.philterd.ui`, and removed from the exclusion.
-
-The user guide is in `docs/` (MkDocs; run `mkdocs build` from that directory). Its dashboard page describes the views still to be ported.
+The user guide is in `docs/` (MkDocs; run `mkdocs build` from that directory).
 
 ## Building
 

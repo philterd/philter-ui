@@ -85,7 +85,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
-        <!-- The client for Philter's REST API, used for sign-in and by the views as they are ported. -->
+        <!-- The client for Philter's REST API, which every page uses. -->
         <dependency>
             <groupId>ai.philterd</groupId>
             <artifactId>philter-sdk-java</artifactId>
@@ -139,15 +139,6 @@
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
                     <release>${maven.compiler.source}</release>
-                    <!-- The dashboard as moved from philterd/philter, still written against Philter's
-                         internal services and entities. It is ported to philter-sdk-java one view at a
-                         time in step 2; until a view is ported, it is not compiled. -->
-                    <excludes>
-                        <exclude>ai/philterd/philter/**</exclude>
-                    </excludes>
-                    <testExcludes>
-                        <testExclude>ai/philterd/philter/**</testExclude>
-                    </testExcludes>
                 </configuration>
             </plugin>
             <plugin>
