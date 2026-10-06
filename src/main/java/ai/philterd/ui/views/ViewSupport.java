@@ -19,6 +19,8 @@ import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.AdminSettings;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
+import ai.philterd.ui.security.PhilterFailures;
+import ai.philterd.ui.security.PhilterUnreachableException;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.SignInMessages;
 import com.vaadin.flow.component.button.Button;
@@ -27,7 +29,6 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.icon.VaadinIcon;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -67,7 +68,8 @@ final class ViewSupport {
             Notifications.failure(settingsFailure(e));
             return Optional.empty();
         } catch (final IOException e) {
-            throw new UncheckedIOException(e);
+            Notifications.failure(settingsFailure(new PhilterUnreachableException(e)));
+            return Optional.empty();
         }
     }
 
@@ -78,11 +80,8 @@ final class ViewSupport {
 
     /** Why a request to Philter failed: Philter's explanation, its status, or that it cannot be reached. */
     static String why(final RuntimeException e) {
-        if (e instanceof ClientException refusal) {
-            return refusal.getErrorMessage() != null ? refusal.getErrorMessage()
-                    : "Philter answered with HTTP " + refusal.getStatusCode() + ".";
-        }
-        return SignInMessages.UNAVAILABLE;
+        final String message = PhilterFailures.messageFor(e);
+        return message == null ? SignInMessages.UNAVAILABLE : message;
     }
 
     /**
@@ -137,7 +136,7 @@ final class ViewSupport {
         try {
             return query.get();
         } catch (final IOException e) {
-            throw new UncheckedIOException(e);
+            throw new PhilterUnreachableException(e);
         }
     }
 

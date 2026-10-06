@@ -2,7 +2,7 @@
 
 Philter UI is served at `https://your-philter-ui-host:8081`. [Sign in](sign_in.md) with your Philter username and password.
 
-Every page works through Philter's [API]({$ philter_docs }/api_and_sdks/api.html) using your session key, so each action is subject to your role and recorded in Philter's [audit log]({$ philter_docs }/auditing.html) under your user. Use the API, not Philter UI, for redacting documents in production.
+Every page works through Philter's [API]({$ philter_docs }/api_and_sdks/api.html) using your session key, so each action is subject to your role and recorded in Philter's [audit log]({$ philter_docs }/auditing.html) under your user. Use the API, not Philter UI, for redacting documents in production. When Philter refuses a request from an open page, or cannot be reached, the page shows Philter's explanation, or says that Philter could not be reached.
 
 ## Testing Philter
 

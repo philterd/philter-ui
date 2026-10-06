@@ -25,6 +25,7 @@ import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.Pages;
 import ai.philterd.ui.security.PhilterClients;
+import ai.philterd.ui.security.PhilterUnreachableException;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.Sessions;
@@ -354,7 +355,7 @@ public class AdminView extends VerticalLayout {
         final AdminSettings settings;
         try {
             settings = ViewSupport.unchecked(client::getAdminSettings);
-        } catch (final ClientException | ServiceUnavailableException e) {
+        } catch (final ClientException | ServiceUnavailableException | PhilterUnreachableException e) {
             // The rest of the page still works; this tab says why it is empty.
             return new Paragraph("Philter's settings could not be read. " + ViewSupport.why(e));
         }
