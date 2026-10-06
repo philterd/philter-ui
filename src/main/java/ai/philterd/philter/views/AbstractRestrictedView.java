@@ -115,11 +115,6 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         final SideNav redactionNav = new SideNav("Redaction");
         addToDrawer(redactionNav);
 
-        // Per-user account and integration settings.
-        final SideNav accountNav = new SideNav("Account");
-        accountNav.addItem(new SideNavItem("My Account", AccountView.class, VaadinIcon.USER.create()));
-        addToDrawer(accountNav);
-
         if (isAdmin()) {
             final SideNav adminNav = new SideNav("Administration");
             adminNav.addItem(new SideNavItem("Admin", AdminView.class, VaadinIcon.USER_STAR.create()));

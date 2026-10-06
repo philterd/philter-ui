@@ -94,12 +94,12 @@ Administrators also see an **All Legal Holds** tab listing every user's holds an
 
 ## My Account
 
-**My Account** lets each user:
+**My Account** is where you manage your own account. Its tabs:
 
-* **Change their password.** See [password requirements](sign_in.md#password-requirements).
-* **Enroll in or remove MFA**, when an administrator has made it available. Removing it takes a code from your authenticator app. See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
-* **Review API keys**: list your keys, including session keys, narrow a key's [scopes]({$ philter_docs }/account/api_keys.html#scopes) with **Edit scopes**, and revoke keys. Philter UI does not create API keys; see [Creating API keys](#creating-api-keys).
-* **Set a [webhook]({$ philter_docs }/api_and_sdks/api/webhooks.html)** URL and secret to receive a signed notification when an asynchronous redaction completes or fails.
+* **Account** shows your username, email, and role. **Change Password** asks for your current password and the new one twice; see [password requirements](sign_in.md#password-requirements). Philter then ends all of your sign-in sessions, and you sign in again with the new password. Your API keys keep working.
+* **MFA** appears when an administrator has made multi-factor authentication available, or when you are enrolled. **Set Up MFA** shows a QR code and setup key for your authenticator app and asks for a code to confirm; you are then signed out, and sign in again with a code. **Remove MFA** asks for a code from your authenticator app; a wrong code counts toward locking your MFA. See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
+* **API Keys** lists your long-lived [API keys]({$ philter_docs }/account/api_keys.html) with their scopes and when they were created. **Edit scopes** can only remove [scopes]({$ philter_docs }/account/api_keys.html#scopes), since Philter does not let a sign-in session add them, and a key keeps at least one. **Revoke** stops a key working. Philter UI does not create keys; see [Creating API keys](#creating-api-keys). Below the keys, **Sign-in Sessions** lists each of your sessions, here or in another program that signs in through Philter, with when it started, was last used, and ends at the latest. You can sign out any session except the one you are using, which ends when you sign out of Philter UI.
+* **Webhook** sets the [webhook]({$ philter_docs }/api_and_sdks/api/webhooks.html) URL Philter calls when an asynchronous redaction completes or fails, and the secret it signs each call with. Philter requires the secret on every save, at least 16 characters, and never shows it again, so copy it to the receiving service when you set it; **Generate** makes a random one. Philter refuses a URL that is not `http` or `https`. When an administrator has set a webhook destination allowlist, only the hosts and address ranges on it are accepted; otherwise any public address is, and a private, loopback, or link-local one is refused. **Remove Webhook** stops the calls.
 
 ## Administration
 

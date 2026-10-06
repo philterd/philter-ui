@@ -26,7 +26,6 @@ import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.encryption.EncryptionService;
 import ai.philterd.philter.services.filtering.RedactionService;
-import ai.philterd.philter.services.mfa.TotpService;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.Component;
 import org.junit.jupiter.api.DisplayName;
@@ -63,9 +62,6 @@ class DashboardViewsTest {
 
         views.put("Dashboard", mongo -> new DashboardView(mongo, encryption, audit,
                 mock(PolicyDataService.class), mock(RedactionService.class), mock(ApiKeyDataService.class)));
-
-        views.put("Account", mongo -> new AccountView(mongo, encryption, audit,
-                mock(ApiKeyDataService.class), mock(AdminSettingsDataService.class), mock(TotpService.class)));
 
         views.put("Admin", mongo -> new AdminView(mongo, encryption, audit,
                 mock(UserService.class), mock(PolicyDataService.class), mock(ContextDataService.class),

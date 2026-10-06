@@ -1,6 +1,6 @@
 # Philter UI
 
-> Philter UI is under development. Signing in works as described in [Signing In](sign_in.md), and the [Policies](dashboard.md#policies), [Custom Lists](dashboard.md#custom-lists), [Always/Never Redact Lists](dashboard.md#alwaysnever-redact-lists), [Contexts](dashboard.md#contexts), [Redaction Ledgers](dashboard.md#redaction-ledgers), and [Legal Holds](dashboard.md#legal-holds) pages are available. The other pages described in [Dashboard](dashboard.md) are being ported to Philter's API.
+> Philter UI is under development. Signing in works as described in [Signing In](sign_in.md), and the [Policies](dashboard.md#policies), [Custom Lists](dashboard.md#custom-lists), [Always/Never Redact Lists](dashboard.md#alwaysnever-redact-lists), [Contexts](dashboard.md#contexts), [Redaction Ledgers](dashboard.md#redaction-ledgers), [Legal Holds](dashboard.md#legal-holds), and [My Account](dashboard.md#my-account) pages are available. The other pages described in [Dashboard](dashboard.md) are being ported to Philter's API.
 
 Philter UI is an optional web interface for administering [Philter](https://github.com/philterd/philter). Philter 4 runs headless and is administered through its [REST API]({$ philter_docs }/api_and_sdks/api.html). Philter UI is a separate application that uses that API. Philter does not need it.
 

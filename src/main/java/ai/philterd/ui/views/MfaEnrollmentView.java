@@ -137,7 +137,7 @@ public class MfaEnrollmentView extends StepLayout {
     }
 
     /** The secret in groups of four, which is easier to type. */
-    private static String grouped(final String secret) {
+    static String grouped(final String secret) {
         return secret.replaceAll("(.{4})(?!$)", "$1 ");
     }
 

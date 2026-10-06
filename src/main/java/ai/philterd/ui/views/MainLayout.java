@@ -69,7 +69,10 @@ public class MainLayout extends AppLayout {
         redaction.addItem(new SideNavItem("Redaction Ledgers", LedgerView.class, VaadinIcon.BOOK.create()));
         redaction.addItem(new SideNavItem("Legal Holds", HoldsView.class, VaadinIcon.LOCK.create()));
 
-        addToDrawer(home, redaction);
+        final SideNav account = new SideNav("Account");
+        account.addItem(new SideNavItem("My Account", AccountView.class, VaadinIcon.USER.create()));
+
+        addToDrawer(home, redaction, account);
 
     }
 
