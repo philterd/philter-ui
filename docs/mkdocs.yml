@@ -26,6 +26,7 @@ theme:
   name: material
   locale: en
   logo: assets/logo.png
+  #favicon: assets/favicon.png
   font:
     text: Roboto
     code: Roboto Mono
@@ -61,7 +62,6 @@ extra:
       find what they're searching for. With your consent, you're helping us to
       make our documentation better.
 markdown_extensions:
-  - admonition
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
