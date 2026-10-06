@@ -22,7 +22,6 @@ import ai.philterd.philter.data.services.AdminSettingsDataService;
 import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.LedgerDataService;
-import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
@@ -72,9 +71,6 @@ class DashboardViewsTest {
 
         views.put("Ledger", mongo -> new LedgerView(mongo, encryption, audit,
                 mock(LedgerDataService.class), signingKeys()));
-
-        views.put("Holds", mongo -> new HoldsView(mongo, encryption, audit,
-                mock(LegalHoldDataService.class)));
 
         views.put("Account", mongo -> new AccountView(mongo, encryption, audit,
                 mock(ApiKeyDataService.class), mock(AdminSettingsDataService.class), mock(TotpService.class)));

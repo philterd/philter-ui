@@ -70,7 +70,19 @@ With Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` set to `true`, administrators c
 
 ## Legal Holds
 
-**Legal Holds** sets and releases [legal holds]({$ philter_docs }/redaction/legal_holds.html): named, audited instructions that block deletion of redaction evidence until released. Administrators see holds across all users when cross-user access is enabled. A blocked deletion names the holds responsible.
+**Legal Holds** sets and releases [legal holds]({$ philter_docs }/redaction/legal_holds.html): named, audited instructions that block deletion and purge of redaction evidence until released.
+
+On the **My Legal Holds** tab you can:
+
+* **See** your holds with their reference, scope, reason, and when they were set (shown in UTC).
+* **Set a hold** with **Set Hold**: a reference, unique among your holds, and what it protects, either one document's ledger chain (enter the document ID) or all of your evidence. A reason is optional. References cannot contain `/`, `\`, `;`, `%`, or control characters, or be `.` or `..`.
+* **Release** a hold. Evidence it covered may then become eligible for deletion or purge, if no other hold covers it.
+
+A hold set before Philter checked references may have one it no longer allows, such as one containing `/`. Such a hold can still be released.
+
+If another evidence or hold operation is in progress, Philter refuses to set or release a hold until it finishes, and the page shows Philter's message.
+
+Administrators also see an **All Legal Holds** tab listing every user's holds and their owners, including users who have been deactivated, and can release them, when Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` is `true`. A deletion blocked by a hold names the holds responsible.
 
 ## My Account
 
