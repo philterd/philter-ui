@@ -32,6 +32,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 final class FakePhilter implements AutoCloseable {
 
     final List<String> revokedKeys = new CopyOnWriteArrayList<>();
+    /** The X-Forwarded-For of each sign-in request, or "none". */
+    final List<String> forwardedFor = new CopyOnWriteArrayList<>();
     private final HttpServer server;
 
     FakePhilter() throws IOException {
@@ -48,6 +50,8 @@ final class FakePhilter implements AutoCloseable {
 
     private void signIn(final HttpExchange exchange) throws IOException {
         final String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        final String forwarded = exchange.getRequestHeaders().getFirst("X-Forwarded-For");
+        forwardedFor.add(forwarded == null ? "none" : forwarded);
         if (exchange.getRequestURI().getPath().endsWith("/mfa")) {
             final String code = JsonParser.parseString(body).getAsJsonObject().get("code").getAsString();
             if ("123456".equals(code)) {

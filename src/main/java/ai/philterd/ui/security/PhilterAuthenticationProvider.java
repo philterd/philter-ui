@@ -27,7 +27,8 @@ import java.io.IOException;
 
 /**
  * Signs a person in by sending their username and password to Philter. Philter is the only user store:
- * Philter UI keeps no passwords, and the password is not stored or logged here.
+ * Philter UI keeps no passwords, and the password is not stored or logged here. The browser's address goes
+ * with them, so Philter rate-limits and audits the sign-in by the person's address rather than Philter UI's.
  */
 @Component
 public class PhilterAuthenticationProvider implements AuthenticationProvider {
@@ -36,10 +37,13 @@ public class PhilterAuthenticationProvider implements AuthenticationProvider {
 
     private final PhilterClients clients;
     private final SignIns signIns;
+    private final ClientAddresses addresses;
 
-    public PhilterAuthenticationProvider(final PhilterClients clients, final SignIns signIns) {
+    public PhilterAuthenticationProvider(final PhilterClients clients, final SignIns signIns,
+                                         final ClientAddresses addresses) {
         this.clients = clients;
         this.signIns = signIns;
+        this.addresses = addresses;
     }
 
     @Override
@@ -49,7 +53,8 @@ public class PhilterAuthenticationProvider implements AuthenticationProvider {
         final String password = authentication.getCredentials() == null ? "" : authentication.getCredentials().toString();
 
         try {
-            return signIns.toAuthentication(username, clients.anonymous().signIn(username, password));
+            return signIns.toAuthentication(username,
+                    clients.anonymous().signIn(username, password, addresses.current()));
         } catch (final IOException | RuntimeException e) {
             final String message = SignInMessages.forFailure(e);
             if (message.equals(SignInMessages.UNAVAILABLE) || message.startsWith("Sign-in failed")) {

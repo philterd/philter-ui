@@ -28,6 +28,7 @@ java -jar target/philter-ui-4.0.0-SNAPSHOT.jar
 | `PORT` | The port Philter UI listens on, so it can run beside Philter on 8080. | `8081` |
 | `SESSION_TIMEOUT_MINUTES` | Minutes without interaction before a person is signed out. | `30` |
 | `DOCUMENT_TIMEOUT_SECONDS` | Seconds to wait for Philter to redact a PDF on the Dashboard. | `300` |
+| `TRUSTED_PROXIES` | Reverse proxies in front of Philter UI (IP addresses and CIDR ranges), whose `X-Forwarded-For` is believed when passing a person's address to Philter on sign-in. | None |
 
 Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Philter UI verifies Philter's TLS certificate, so a Philter with a self-signed certificate needs that certificate in a truststore passed with `-Djavax.net.ssl.trustStore=<path>`. See the [user guide](docs/docs/index.md).
 

@@ -36,15 +36,21 @@ public class SignIns {
 
     private final PhilterClients clients;
     private final SessionKeyRevoker revoker;
+    private final ClientAddresses addresses;
 
-    public SignIns(final PhilterClients clients, final SessionKeyRevoker revoker) {
+    public SignIns(final PhilterClients clients, final SessionKeyRevoker revoker, final ClientAddresses addresses) {
         this.clients = clients;
         this.revoker = revoker;
+        this.addresses = addresses;
     }
 
-    /** Completes a sign-in for a user enrolled in MFA, with a code from their authenticator app. */
+    /**
+     * Completes a sign-in for a user enrolled in MFA, with a code from their authenticator app. The browser's
+     * address goes to Philter, which rate-limits and audits the attempt by it.
+     */
     public Authentication completeSignIn(final PendingMfa pending, final String code) throws IOException {
-        return toAuthentication(pending.getUsername(), clients.anonymous().completeSignIn(pending.challenge(), code));
+        return toAuthentication(pending.getUsername(),
+                clients.anonymous().completeSignIn(pending.challenge(), code, addresses.current()));
     }
 
     /**

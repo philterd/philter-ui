@@ -18,9 +18,12 @@ package ai.philterd.ui.security;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,13 +47,35 @@ class PhilterAuthenticationProviderTest {
     void start() throws Exception {
         philter = new FakePhilter();
         final PhilterClients clients = new PhilterClients(philter.url());
-        signIns = new SignIns(clients, new SessionKeyRevoker(clients));
-        provider = new PhilterAuthenticationProvider(clients, signIns);
+        final ClientAddresses addresses = new ClientAddresses("10.0.0.0/8");
+        signIns = new SignIns(clients, new SessionKeyRevoker(clients), addresses);
+        provider = new PhilterAuthenticationProvider(clients, signIns, addresses);
     }
 
     @AfterEach
     void stop() {
+        RequestContextHolder.resetRequestAttributes();
         philter.close();
+    }
+
+    @Test
+    void theBrowsersAddressGoesToPhilter() throws Exception {
+        // Through a trusted reverse proxy at 10.0.0.2, from a browser at 203.0.113.7.
+        final MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("10.0.0.2");
+        request.addHeader("X-Forwarded-For", "198.51.100.99, 203.0.113.7");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        signIn("jordan");
+        signIns.completeSignIn(new PendingMfa("mfa", "challenge-1"), "123456");
+
+        assertEquals(java.util.List.of("203.0.113.7", "203.0.113.7"), philter.forwardedFor);
+    }
+
+    @Test
+    void outsideARequestNoAddressIsSent() {
+        signIn("jordan");
+        assertEquals(java.util.List.of("none"), philter.forwardedFor);
     }
 
     @Test
@@ -115,8 +140,9 @@ class PhilterAuthenticationProviderTest {
     @Test
     void philterBeingUnreachableIsReported() {
         final PhilterClients clients = new PhilterClients("http://127.0.0.1:1");
+        final ClientAddresses addresses = new ClientAddresses("");
         final PhilterAuthenticationProvider unreachable = new PhilterAuthenticationProvider(clients,
-                new SignIns(clients, new SessionKeyRevoker(clients)));
+                new SignIns(clients, new SessionKeyRevoker(clients), addresses), addresses);
         final SignInFailedException failure = assertThrows(SignInFailedException.class,
                 () -> unreachable.authenticate(UsernamePasswordAuthenticationToken.unauthenticated("jordan", PASSWORD)));
         assertEquals(SignInMessages.UNAVAILABLE, failure.getMessage());
