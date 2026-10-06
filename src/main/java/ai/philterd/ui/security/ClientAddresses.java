@@ -30,8 +30,8 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * The address of the person's browser, which Philter UI passes to Philter on sign-in so that Philter
- * rate-limits and audits each person by their own address rather than all of them by Philter UI's.
+ * The address of the person's browser, which Philter UI passes to Philter with each request so that Philter
+ * rate-limits sign-ins and audits each person by their own address rather than all of them by Philter UI's.
  *
  * <p>It is the address of the connection to Philter UI, unless that connection comes from a proxy listed in
  * {@code TRUSTED_PROXIES}. Then {@code X-Forwarded-For} is read from the right, skipping trusted proxies,

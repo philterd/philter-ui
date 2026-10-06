@@ -16,6 +16,9 @@
 package ai.philterd.ui.security;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 
@@ -50,6 +53,37 @@ class SessionKeyRevokerTest {
         final PhilterUser user = new PhilterUser("jordan", true, PhilterUser.Restriction.NONE, "sk_secret", "id-secret");
         assertFalse(user.toString().contains("sk_secret"));
         assertFalse(user.toString().contains("id-secret"));
+    }
+
+    @Test
+    void aPersonsRequestsCarryTheirAddress() throws Exception {
+        try (FakePhilter philter = new FakePhilter()) {
+            final PhilterClients clients = new PhilterClients(philter.url(),
+                    PhilterClients.DEFAULT_DOCUMENT_TIMEOUT_SECONDS, new ClientAddresses("10.0.0.0/8"));
+            final PhilterUser user = new PhilterUser("jordan", false, PhilterUser.Restriction.NONE, "sk_jordan", "id-jordan");
+
+            // Through a trusted proxy, from 203.0.113.7, and then from 198.51.100.4 with the same client.
+            RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request("203.0.113.7")));
+            clients.forUser(user).getCurrentUser();
+            RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request("198.51.100.4")));
+            clients.forUser(user).getCurrentUser();
+
+            // Outside a browser request, as when a timed-out session is signed out, none is sent.
+            RequestContextHolder.resetRequestAttributes();
+            new SessionKeyRevoker(clients).revoke(user);
+
+            assertEquals(List.of("/api/users/me 203.0.113.7", "/api/users/me 198.51.100.4",
+                    "/api/api-keys/current none"), philter.sessionRequests);
+        } finally {
+            RequestContextHolder.resetRequestAttributes();
+        }
+    }
+
+    private static MockHttpServletRequest request(final String browser) {
+        final MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("10.0.0.2");
+        request.addHeader("X-Forwarded-For", browser);
+        return request;
     }
 
 }

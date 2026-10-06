@@ -34,6 +34,8 @@ final class FakePhilter implements AutoCloseable {
     final List<String> revokedKeys = new CopyOnWriteArrayList<>();
     /** The X-Forwarded-For of each sign-in request, or "none". */
     final List<String> forwardedFor = new CopyOnWriteArrayList<>();
+    /** The path and X-Forwarded-For of each request made with a session key, as "path xff" or "path none". */
+    final List<String> sessionRequests = new CopyOnWriteArrayList<>();
     private final HttpServer server;
 
     FakePhilter() throws IOException {
@@ -87,6 +89,7 @@ final class FakePhilter implements AutoCloseable {
     }
 
     private void me(final HttpExchange exchange) throws IOException {
+        record(exchange);
         final String key = key(exchange);
         switch (key) {
             case "sk_admin" -> respond(exchange, 200, user("admin", "admin"));
@@ -96,6 +99,7 @@ final class FakePhilter implements AutoCloseable {
     }
 
     private void signOut(final HttpExchange exchange) throws IOException {
+        record(exchange);
         final String key = key(exchange);
         if ("sk_expired".equals(key)) {
             respond(exchange, 401, "{\"message\":\"Unauthorized\"}");
@@ -104,6 +108,11 @@ final class FakePhilter implements AutoCloseable {
         revokedKeys.add(key);
         exchange.sendResponseHeaders(204, -1);
         exchange.close();
+    }
+
+    private void record(final HttpExchange exchange) {
+        final String forwarded = exchange.getRequestHeaders().getFirst("X-Forwarded-For");
+        sessionRequests.add(exchange.getRequestURI().getPath() + " " + (forwarded == null ? "none" : forwarded));
     }
 
     private static String key(final HttpExchange exchange) {
