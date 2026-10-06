@@ -20,6 +20,7 @@ import ai.philterd.philter.model.CustomListSummary;
 import ai.philterd.philter.model.GetListsResponse;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
+import ai.philterd.ui.model.Lines;
 import ai.philterd.ui.model.Pages;
 import ai.philterd.ui.model.PathSafeNames;
 import ai.philterd.ui.security.PhilterClients;
@@ -44,7 +45,6 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -164,7 +164,7 @@ public class CustomListsView extends VerticalLayout {
                 invalid(name, "The list name " + PathSafeNames.RULE + ".");
                 return;
             }
-            final List<String> values = items(items.getValue());
+            final List<String> values = Lines.terms(items.getValue());
             final String problem = itemsProblem(values);
             if (problem != null) {
                 showError(error, problem);
@@ -218,7 +218,7 @@ public class CustomListsView extends VerticalLayout {
 
         final Button save = new Button("Save", e -> {
             error.setVisible(false);
-            final List<String> values = items(items.getValue());
+            final List<String> values = Lines.terms(items.getValue());
             final String problem = itemsProblem(values);
             if (problem != null) {
                 showError(error, problem);
@@ -269,14 +269,6 @@ public class CustomListsView extends VerticalLayout {
         dialog.getFooter().add(ViewSupport.cancel(dialog), delete);
         dialog.open();
 
-    }
-
-    /** The items typed one per line, trimmed, without blank lines, which Philter would count toward its limit. */
-    static List<String> items(final String text) {
-        if (text == null) {
-            return List.of();
-        }
-        return Arrays.stream(text.split("\\R")).map(String::trim).filter(item -> !item.isEmpty()).toList();
     }
 
     /** What is wrong with the items under Philter's limits, or {@code null} if nothing is. */

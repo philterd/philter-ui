@@ -15,6 +15,7 @@
  */
 package ai.philterd.ui.views;
 
+import ai.philterd.ui.model.Lines;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -27,17 +28,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CustomListsViewTest {
 
     @Test
-    void itemsAreOnePerLineTrimmedWithoutBlankLines() {
-        assertEquals(List.of("alpha", "beta", "gamma delta"),
-                CustomListsView.items("  alpha\n\nbeta  \r\n   \ngamma delta\n\n"));
-        assertEquals(List.of(), CustomListsView.items(""));
-        assertEquals(List.of(), CustomListsView.items(null));
-    }
-
-    @Test
     void blankLinesDoNotCountTowardTheLimit() {
         final String text = String.join("\n\n", Collections.nCopies(CustomListsView.MAXIMUM_ITEMS, "x"));
-        assertNull(CustomListsView.itemsProblem(CustomListsView.items(text)));
+        assertNull(CustomListsView.itemsProblem(Lines.terms(text)));
     }
 
     @Test

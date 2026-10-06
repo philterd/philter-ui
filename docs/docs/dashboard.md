@@ -14,7 +14,7 @@ In **Redaction Policies** you can:
 
 * **Create and edit policies** as JSON, or build one in the [policy editor](https://policies.philterd.ai/) and paste it in. Philter validates a policy when it is saved.
 * **Copy a managed policy.** Philter ships pre-configured policies for common PII, financial PII, and healthcare PHI. Managed policies cannot be changed; copy one to make your own version.
-* **Manage Always/Never Redact Lists**: terms that are always or never redacted across all of your policies, on their own **Always/Never Redact Lists** page.
+* **Manage Always/Never Redact Lists**: terms that are always or never redacted across all of your policies, on their own [Always/Never Redact Lists](#alwaysnever-redact-lists) page.
 
 ## Custom Lists
 
@@ -30,6 +30,15 @@ On the **My Custom Lists** tab you can:
 A list created before Philter checked names may have a name it no longer allows, such as one containing `/`. Such a list cannot be opened or edited, but it can be deleted.
 
 Administrators also see an **All Custom Lists** tab listing every user's lists with their descriptions, sizes, and owners, when Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` is `true`.
+
+## Always/Never Redact Lists
+
+**Always/Never Redact Lists** holds two lists of [terms]({$ philter_docs }/redaction/redact_lists.html) that apply to all of your redactions, whatever the policy: terms that are always redacted, and terms that are never redacted. Each has its own tab.
+
+* **Edit** a list as terms, one per line. Blank lines and surrounding spaces are ignored. Each list can have up to 1000 terms of up to 100 characters each.
+* **Save** a list to replace it with what is shown. Saving an empty list clears it. Saving one list keeps the other as Philter has it, including changes made elsewhere, and updates the other tab to match unless you have unsaved edits there.
+
+If Philter refuses a save, the page shows Philter's reason, for example a term that is too long.
 
 ## Contexts
 

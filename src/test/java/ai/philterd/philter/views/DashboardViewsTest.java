@@ -25,7 +25,6 @@ import ai.philterd.philter.data.services.LedgerDataService;
 import ai.philterd.philter.data.services.LegalHoldDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.PolicyVersionDataService;
-import ai.philterd.philter.data.services.RedactListsDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.encryption.EncryptionService;
@@ -70,9 +69,6 @@ class DashboardViewsTest {
 
         views.put("Policies", mongo -> new PoliciesView(mongo, encryption, audit,
                 mock(PolicyDataService.class), mock(PolicyVersionDataService.class)));
-
-        views.put("Redact lists", mongo -> new RedactListsView(mongo, encryption, audit,
-                mock(RedactListsDataService.class)));
 
         views.put("Ledger", mongo -> new LedgerView(mongo, encryption, audit,
                 mock(LedgerDataService.class), signingKeys()));
