@@ -80,7 +80,7 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         logoImage.setWidth("150px");
         logoImage.getStyle().set("cursor", "pointer");
         logoImage.addClickListener(click -> {
-            UI.getCurrent().navigate(DashboardView.class);
+            UI.getCurrent().navigate("");
         });
 
         final Button logoutButton = new Button("Sign Out", VaadinIcon.SIGN_OUT.create(), click -> {
@@ -103,13 +103,6 @@ public abstract class AbstractRestrictedView extends AppLayout implements Before
         header.getStyle().set("border-bottom", "1px solid var(--lumo-contrast-10pct)");
 
         addToNavbar(header);
-
-        // Dashboard sits on its own at the top. The top margin gives the navigation breathing room so
-        // the first item isn't jammed up against the logo/top bar.
-        final SideNav mainNav = new SideNav();
-        mainNav.getStyle().set("margin-top", "var(--lumo-space-m)");
-        mainNav.addItem(new SideNavItem("Dashboard", DashboardView.class, VaadinIcon.DASHBOARD.create()));
-        addToDrawer(mainNav);
 
         // Everything that configures or records a redaction.
         final SideNav redactionNav = new SideNav("Redaction");

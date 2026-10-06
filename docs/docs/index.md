@@ -1,6 +1,6 @@
 # Philter UI
 
-> Philter UI is under development. Signing in works as described in [Signing In](sign_in.md), and the [Policies](dashboard.md#policies), [Custom Lists](dashboard.md#custom-lists), [Always/Never Redact Lists](dashboard.md#alwaysnever-redact-lists), [Contexts](dashboard.md#contexts), [Redaction Ledgers](dashboard.md#redaction-ledgers), [Legal Holds](dashboard.md#legal-holds), and [My Account](dashboard.md#my-account) pages are available. The other pages described in [Dashboard](dashboard.md) are being ported to Philter's API.
+> Philter UI is under development. Signing in works as described in [Signing In](sign_in.md), and the [Dashboard](dashboard.md#testing-philter), [Policies](dashboard.md#policies), [Custom Lists](dashboard.md#custom-lists), [Always/Never Redact Lists](dashboard.md#alwaysnever-redact-lists), [Contexts](dashboard.md#contexts), [Redaction Ledgers](dashboard.md#redaction-ledgers), [Legal Holds](dashboard.md#legal-holds), and [My Account](dashboard.md#my-account) pages are available. The other pages described in [Dashboard](dashboard.md) are being ported to Philter's API.
 
 Philter UI is an optional web interface for administering [Philter](https://github.com/philterd/philter). Philter 4 runs headless and is administered through its [REST API]({$ philter_docs }/api_and_sdks/api.html). Philter UI is a separate application that uses that API. Philter does not need it.
 
@@ -21,6 +21,7 @@ java -jar philter-ui-{$ philter_ui_version }.jar
 | `PHILTER_URL` | The address of your Philter instance. | `https://localhost:8080` |
 | `PORT` | The port Philter UI listens on, so it can run beside Philter on 8080. | `8081` |
 | `SESSION_TIMEOUT_MINUTES` | Minutes without interaction in Philter UI before a person is signed out. | `30` |
+| `DOCUMENT_TIMEOUT_SECONDS` | Seconds Philter UI waits for Philter to redact a PDF on the Dashboard. | `300` |
 
 Philter must have password sign-in enabled with `PASSWORD_SIGN_IN_ENABLED=true`; it is off by default. See Philter's [Sign-in Security]({$ philter_docs }/sign_in_security.html).
 

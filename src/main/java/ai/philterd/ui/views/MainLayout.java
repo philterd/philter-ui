@@ -59,7 +59,7 @@ public class MainLayout extends AppLayout {
         addToNavbar(new DrawerToggle(), header);
 
         final SideNav home = new SideNav();
-        home.addItem(new SideNavItem("Home", HomeView.class, VaadinIcon.HOME.create()));
+        home.addItem(new SideNavItem("Dashboard", DashboardView.class, VaadinIcon.DASHBOARD.create()));
 
         final SideNav redaction = new SideNav("Redaction");
         redaction.addItem(new SideNavItem("Redaction Policies", PoliciesView.class, VaadinIcon.FILE_TEXT.create()));

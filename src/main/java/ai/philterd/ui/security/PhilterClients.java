@@ -16,6 +16,7 @@
 package ai.philterd.ui.security;
 
 import ai.philterd.philter.PhilterClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -23,12 +24,23 @@ import org.springframework.stereotype.Component;
 @Component
 public class PhilterClients {
 
+    /** How long a document redaction may take, in seconds, unless {@code DOCUMENT_TIMEOUT_SECONDS} says otherwise. */
+    public static final long DEFAULT_DOCUMENT_TIMEOUT_SECONDS = 300;
+
     private final String endpoint;
+    private final long documentTimeoutSeconds;
     private final PhilterClient anonymous;
 
-    public PhilterClients(@Value("${philter.url}") final String endpoint) {
+    @Autowired
+    public PhilterClients(@Value("${philter.url}") final String endpoint,
+                          @Value("${philter.document-timeout-seconds}") final long documentTimeoutSeconds) {
         this.endpoint = endpoint;
+        this.documentTimeoutSeconds = documentTimeoutSeconds;
         this.anonymous = new PhilterClient.PhilterClientBuilder().withEndpoint(endpoint).build();
+    }
+
+    public PhilterClients(final String endpoint) {
+        this(endpoint, DEFAULT_DOCUMENT_TIMEOUT_SECONDS);
     }
 
     /** A client with no API key, for signing in. */
@@ -39,6 +51,18 @@ public class PhilterClients {
     /** A client that sends the person's session key, built once per signed-in person. */
     public PhilterClient forUser(final PhilterUser user) {
         return user.client(() -> forSessionKey(user.sessionKey()));
+    }
+
+    /**
+     * A client for redacting a document synchronously, which can take longer than the SDK's default
+     * timeout allows. Built once per signed-in person, like {@link #forUser}.
+     */
+    public PhilterClient forDocuments(final PhilterUser user) {
+        return user.documentClient(() -> new PhilterClient.PhilterClientBuilder()
+                .withEndpoint(endpoint)
+                .withApiKey("Bearer " + user.sessionKey())
+                .withTimeout(documentTimeoutSeconds)
+                .build());
     }
 
     PhilterClient forSessionKey(final String sessionKey) {

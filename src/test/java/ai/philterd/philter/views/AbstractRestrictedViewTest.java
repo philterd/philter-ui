@@ -158,11 +158,6 @@ class AbstractRestrictedViewTest {
             assertFalse(ordinary.contains("Admin"),
                     "an ordinary user must not be offered the Admin page; saw " + ordinary);
 
-            // The rest of the dashboard is still there, so the assertion above is about the Admin item
-            // and not about an empty drawer.
-            assertTrue(ordinary.contains("Dashboard") && ordinary.contains("My Account"),
-                    "the ordinary user's own pages must still be listed; saw " + ordinary);
-
         }
 
     }

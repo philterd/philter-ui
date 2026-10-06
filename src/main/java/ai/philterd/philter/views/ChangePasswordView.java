@@ -105,7 +105,7 @@ public class ChangePasswordView extends VerticalLayout implements BeforeEnterObs
 
             if (response.isSuccessful()) {
                 Notification.show("Password changed. Please continue.");
-                UI.getCurrent().navigate(DashboardView.class);
+                UI.getCurrent().navigate("");
             } else {
                 Notification.show(response.getMessage());
             }
@@ -133,7 +133,7 @@ public class ChangePasswordView extends VerticalLayout implements BeforeEnterObs
 
         // If a change is not required, there is no reason to be here; go to the dashboard.
         if (!user.isPasswordChangeRequired()) {
-            event.forwardTo(DashboardView.class);
+            event.forwardTo("");
         }
 
     }

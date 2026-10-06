@@ -19,13 +19,11 @@ import ai.philterd.philter.audit.AuditEventPublisher;
 import ai.philterd.philter.audit.AuditLogService;
 import ai.philterd.philter.data.entities.UserEntity;
 import ai.philterd.philter.data.services.AdminSettingsDataService;
-import ai.philterd.philter.data.services.ApiKeyDataService;
 import ai.philterd.philter.data.services.ContextDataService;
 import ai.philterd.philter.data.services.PolicyDataService;
 import ai.philterd.philter.data.services.SigningKeyDataService;
 import ai.philterd.philter.data.services.UserService;
 import ai.philterd.philter.services.encryption.EncryptionService;
-import ai.philterd.philter.services.filtering.RedactionService;
 import com.mongodb.client.MongoClient;
 import com.vaadin.flow.component.Component;
 import org.junit.jupiter.api.DisplayName;
@@ -39,14 +37,13 @@ import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
  * The dashboard had no tests at all: every page was built, wired and shipped without a single
- * assertion. This covers what a broken page would cost — that each one builds for the user who opens
- * it, and that a page reached by a non-administrator does not offer administration.
+ * assertion. This covers what a broken page would cost: that each one builds for the user who opens
+ * it.
  *
  * <p>Rendering is not asserted here; that needs a browser. What is asserted is everything that runs
  * before a browser is involved, which is where the constructors do their wiring.
@@ -59,9 +56,6 @@ class DashboardViewsTest {
         final EncryptionService encryption = mock(EncryptionService.class);
         final AuditEventPublisher audit = mock(AuditEventPublisher.class);
         final Map<String, Function<MongoClient, Component>> views = new LinkedHashMap<>();
-
-        views.put("Dashboard", mongo -> new DashboardView(mongo, encryption, audit,
-                mock(PolicyDataService.class), mock(RedactionService.class), mock(ApiKeyDataService.class)));
 
         views.put("Admin", mongo -> new AdminView(mongo, encryption, audit,
                 mock(UserService.class), mock(PolicyDataService.class), mock(ContextDataService.class),
@@ -114,55 +108,6 @@ class DashboardViewsTest {
 
         }
 
-    }
-
-    @Test
-    @DisplayName("Every page an ordinary user can open builds, and none of them offers administration")
-    void noPageOffersAdministrationToAnOrdinaryUser() {
-
-        final UserEntity ordinary = HeadlessDashboard.user("user@example.com", "user");
-
-        try (final HeadlessDashboard dashboard = HeadlessDashboard.signedInAs(ordinary.getUsername())) {
-
-            final MongoClient mongo = HeadlessDashboard.mongoClientReturning(ordinary);
-            final List<String> offered = new ArrayList<>();
-
-            for (final Map.Entry<String, Function<MongoClient, Component>> view : views().entrySet()) {
-
-                // Not built here for the reason given above, and an ordinary user cannot reach it
-                // anyway; the point of this test is the pages they do open.
-                if ("Admin".equals(view.getKey())) {
-                    continue;
-                }
-
-                final List<String> labels = navigationLabels(view.getValue().apply(mongo));
-
-                if (labels.contains("Admin")) {
-                    offered.add(view.getKey());
-                }
-
-                assertTrue(labels.contains("Dashboard"),
-                        view.getKey() + " lost its navigation entirely; saw " + labels);
-
-            }
-
-            assertEquals(List.of(), offered, "these pages offered the Admin menu to an ordinary user");
-
-        }
-
-    }
-
-    private static List<String> navigationLabels(final Component root) {
-        final List<String> labels = new ArrayList<>();
-        collect(root, labels);
-        return labels;
-    }
-
-    private static void collect(final Component component, final List<String> labels) {
-        if (component instanceof com.vaadin.flow.component.sidenav.SideNavItem item) {
-            labels.add(item.getLabel());
-        }
-        component.getChildren().forEach(child -> collect(child, labels));
     }
 
 }

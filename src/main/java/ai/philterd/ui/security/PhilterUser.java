@@ -41,6 +41,7 @@ public final class PhilterUser implements Serializable {
     private final String sessionKeyId;
     private final AtomicBoolean ended = new AtomicBoolean();
     private transient volatile PhilterClient client;
+    private transient volatile PhilterClient documentClient;
 
     public PhilterUser(final String username, final boolean administrator, final Restriction restriction,
                        final String sessionKey, final String sessionKeyId) {
@@ -80,6 +81,13 @@ public final class PhilterUser implements Serializable {
             client = builder.get();
         }
         return client;
+    }
+
+    synchronized PhilterClient documentClient(final Supplier<PhilterClient> builder) {
+        if (documentClient == null) {
+            documentClient = builder.get();
+        }
+        return documentClient;
     }
 
     /** Marks the session as ended, returning {@code false} if it already was, so the key is revoked once. */

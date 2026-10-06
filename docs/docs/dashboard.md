@@ -6,7 +6,15 @@ Every page works through Philter's [API]({$ philter_docs }/api_and_sdks/api.html
 
 ## Testing Philter
 
-The **Dashboard** home page submits text or a PDF to Philter with a policy you choose and shows the redacted result. Use it to tune a policy before deploying it.
+The **Dashboard** is the home page. It redacts text or a PDF with one of your policies so you can see what the policy finds, and tune it before deploying it.
+
+* Pick a **Policy**. The list holds your own policies; `default` is selected when you have one, or your only policy when you have just one.
+* **Text** redacts what you type or paste and shows the redacted text below it.
+* **PDF** takes one PDF of at most 50 MB and returns the redacted PDF to download, named after the upload with `-redacted` added. Philter UI holds the upload in memory and does not write it to disk. Philter UI waits up to `DOCUMENT_TIMEOUT_SECONDS` (default 300) for Philter to finish; see [Running](index.md#running).
+
+No [context]({$ philter_docs }/redaction/contexts.html) is sent, so token replacements are not stored for later requests and no redaction ledger is written. Each redaction is an ordinary request to Philter's [filter API]({$ philter_docs }/api_and_sdks/api/filtering_api.html), recorded under your user like any other.
+
+If your bootstrap API key from `PHILTER_BOOTSTRAP_API_KEY` is still active, the Dashboard reminds you to create a key of your own with Philter's API (see [Creating API keys](#creating-api-keys)) and then revoke the bootstrap key on [My Account](#my-account).
 
 ## Policies
 

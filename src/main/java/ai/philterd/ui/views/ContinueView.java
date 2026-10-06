@@ -46,7 +46,7 @@ public class ContinueView extends Div implements BeforeEnterObserver {
         } else if (authenticationContext.hasRole(Roles.MFA_ENROLLMENT)) {
             event.forwardTo(MfaEnrollmentView.class);
         } else {
-            event.forwardTo(HomeView.class);
+            event.forwardTo(DashboardView.class);
         }
     }
 
