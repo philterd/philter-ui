@@ -26,7 +26,7 @@ java -jar target/philter-ui-4.0.0-SNAPSHOT.jar
 |----------------------|-------------|---------|
 | `PHILTER_URL` | The address of your Philter instance. | `https://localhost:8080` |
 | `PORT` | The port Philter UI listens on, so it can run beside Philter on 8080. | `8081` |
-| `SESSION_TIMEOUT_MINUTES` | Minutes without interaction before a person is signed out. | `30` |
+| `SESSION_TIMEOUT_MINUTES` | Minutes after a person's browser stops contacting Philter UI, for example after the tab is closed, before their session ends. | `30` |
 | `DOCUMENT_TIMEOUT_SECONDS` | Seconds to wait for Philter to redact a PDF on the Dashboard. | `300` |
 | `TRUSTED_PROXIES` | Reverse proxies in front of Philter UI (IP addresses and CIDR ranges), whose `X-Forwarded-For` is believed when passing a person's address to Philter with each request. | None |
 

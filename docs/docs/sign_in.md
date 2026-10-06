@@ -29,21 +29,21 @@ MFA uses time-based one-time codes from a standard authenticator app. An adminis
 
 * **Enrolling when MFA is required.** If Philter requires MFA and you have not enrolled, Philter UI shows a QR code and a setup key after you sign in. Scan the code (or type the key) into your authenticator app and enter the code it shows. Philter then ends that session, and you sign in again, this time with a code.
 * **Signing in.** Enter your password, then a code from your authenticator app.
-* **A wrong code** ends that sign-in attempt: sign in again with your password and try a new code.
-* **Each code works once.** If a code was just used, wait for the app to show the next one.
-* **Too many wrong codes** (five in a row) lock your account until an administrator unlocks it.
-* **Lost authenticator:** an administrator removes your enrollment, and you enroll again.
+* **A wrong code** ends that sign-in attempt: sign in again with your password and try a new code. Enter the code within five minutes of your password, or the attempt ends the same way.
+* **Each code works once.** A code that was already used counts as a wrong code, so if a code was just used, wait for the app to show the next one.
+* **Too many wrong codes** (five in a row) lock your MFA until an administrator unlocks it or removes your enrollment. Wrong codes entered when removing MFA on My Account count too.
+* **Lost authenticator:** an administrator removes your enrollment with **Disable MFA** on the [Admin](dashboard.md#users) page, and you enroll again.
 
 ## Failed sign-ins
 
-After repeated failed sign-ins for a username (5 within 15 minutes by default), Philter locks that username for a period, and sign-in is refused even with the correct password. The lock clears on its own. Philter also limits how many sign-in attempts each address can make per minute; Philter UI passes your browser's address to Philter for this (see [Client addresses](index.md#client-addresses)). Philter UI shows how long to wait in either case.
+After repeated failed sign-ins for a username (5 within 15 minutes by default), Philter locks that username (for 15 minutes by default), and sign-in is refused even with the correct password. The attempt that sets the lock is reported as an incorrect password; later attempts say the username is locked. The lock clears on its own. Philter also limits how many sign-in attempts each address can make per minute; Philter UI passes your browser's address to Philter for this (see [Client addresses](index.md#client-addresses)). Philter UI says how long to wait: a minute for the address limit, and the full lockout period for a locked username, which may be longer than what remains of it.
 
 ## Sessions
 
 Your session ends, and Philter UI returns you to the sign-in page, when:
 
 * You sign out. Philter UI revokes the session key in Philter.
-* You do not interact with Philter UI for `SESSION_TIMEOUT_MINUTES` (default 30). An open tab you are not using does not keep the session alive. Philter UI revokes the session key.
-* Philter stops accepting the session key. This happens when the key goes unused for Philter's idle timeout (default 30 minutes) or reaches its maximum lifetime (default 12 hours), when your password is changed or reset, when you enroll in MFA, when your account is deactivated, or when an administrator signs you out everywhere.
+* Your browser stops contacting Philter UI, for example because you closed the tab, for `SESSION_TIMEOUT_MINUTES` (default 30). Philter UI revokes the session key. A tab left open keeps contacting Philter UI, so this does not apply to it; Philter's idle timeout, below, ends such a session instead.
+* Philter stops accepting the session key. This happens when the key goes unused for Philter's idle timeout (default 30 minutes) or reaches its maximum lifetime (default 12 hours), when your password is changed or reset, when you enroll in MFA, when your account is deactivated, when an administrator signs you out everywhere, or when the session is signed out from **Sign-in Sessions** on My Account. Philter UI notices on its next request to Philter, for example when you next click something, and then returns you to the sign-in page.
 
 Sign-ins, failures, lockouts, password changes, MFA changes, and session keys are recorded in Philter's [audit log]({$ philter_docs }/sign_in_security.html#audit-events).
