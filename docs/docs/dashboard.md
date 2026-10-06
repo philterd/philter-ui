@@ -58,7 +58,7 @@ With Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` set to `true`, administrators c
 
 * **Change their password.** See [password requirements](sign_in.md#password-requirements).
 * **Enroll in or remove MFA**, when an administrator has made it available. Removing it takes a code from your authenticator app. See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
-* **Review API keys**: list your keys, including session keys, change a key's [scopes]({$ philter_docs }/account/api_keys.html#scopes) with **Edit scopes**, and revoke keys. Philter does not let a session key create API keys, so create long-lived keys for scripts and integrations with the [API Keys API]({$ philter_docs }/api_and_sdks/api/api_keys_api.html) using an existing key.
+* **Review API keys**: list your keys, including session keys, narrow a key's [scopes]({$ philter_docs }/account/api_keys.html#scopes) with **Edit scopes**, and revoke keys. Philter UI does not create API keys; see [Creating API keys](#creating-api-keys).
 * **Set a [webhook]({$ philter_docs }/api_and_sdks/api/webhooks.html)** URL and secret to receive a signed notification when an asynchronous redaction completes or fails.
 
 ## Administration
@@ -84,3 +84,27 @@ The Users grid lists all users, including deactivated ones.
 ### Audit Log
 
 **Audit Log** exports Philter's [audit log]({$ philter_docs }/auditing.html) as CSV for a range of whole days, up to 31 days per export. Audit events never contain sensitive values.
+
+## Creating API keys
+
+Philter UI does not create API keys. Philter refuses to create a key with the session key Philter UI holds for your sign-in, so a key made from a session cannot outlive it or a password reset. Create long-lived keys for scripts and integrations with Philter's [API Keys API]({$ philter_docs }/api_and_sdks/api/api_keys_api.html#create-a-key), using a long-lived key you already have. On a new deployment, that is the [bootstrap API key]({$ philter_docs }/account/api_keys.html#bootstrapping-an-api-key-for-automation).
+
+Create a key for yourself:
+
+```
+curl -k "https://localhost:8080/api/api-keys" \
+  -H "Authorization: Bearer <existing-api-key>" \
+  -H "Content-Type: application/json" \
+  --data '{"scopes":["redact"]}'
+```
+
+An administrator creates a key for another user by naming them in the path:
+
+```
+curl -k "https://localhost:8080/api/users/<username>/api-keys" \
+  -H "Authorization: Bearer <administrator-api-key>" \
+  -H "Content-Type: application/json" \
+  --data '{"scopes":["redact"]}'
+```
+
+The response contains the key in `apiKey`. It is shown once; Philter stores only a hash of it. A key can only be given scopes the key that creates it holds. Once created, the key appears in **My Account**, where you can narrow its scopes or revoke it.
