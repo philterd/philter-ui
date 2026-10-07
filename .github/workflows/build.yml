@@ -18,4 +18,6 @@ jobs:
         with:
           node-version: '22'
       - name: Build and test
-        run: mvn -B verify
+        # -U re-checks SNAPSHOT dependencies such as philter-sdk-java; without it, the cached ~/.m2 keeps the
+        # snapshot already resolved that day, so a newer one published since is not used.
+        run: mvn -B -U verify
