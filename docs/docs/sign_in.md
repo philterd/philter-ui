@@ -43,7 +43,7 @@ After repeated failed sign-ins for a username (5 within 15 minutes by default), 
 Your session ends, and Philter UI returns you to the sign-in page, when:
 
 * You sign out. Philter UI revokes the session key in Philter.
-* Your browser stops contacting Philter UI, for example because you closed the tab, for `SESSION_TIMEOUT_MINUTES` (default 30). Philter UI revokes the session key. A tab left open keeps contacting Philter UI, so this does not apply to it; Philter's idle timeout, below, ends such a session instead.
+* You do not interact with Philter UI for `SESSION_TIMEOUT_MINUTES` (default 30). An open tab you are not using does not keep the session alive. Philter UI revokes the session key, and an open tab shows the sign-in page the next time you click something. An open tab is checked when it next contacts Philter UI in the background, every 5 minutes, so it can be signed out up to 5 minutes after `SESSION_TIMEOUT_MINUTES`.
 * Philter stops accepting the session key. This happens when the key goes unused for Philter's idle timeout (default 30 minutes) or reaches its maximum lifetime (default 12 hours), when your password is changed or reset, when you enroll in MFA, when your account is deactivated, when an administrator signs you out everywhere, or when the session is signed out from **Sign-in Sessions** on My Account. Philter UI notices on its next request to Philter, for example when you next click something, and then returns you to the sign-in page.
 
 Sign-ins, failures, lockouts, password changes, MFA changes, and session keys are recorded in Philter's [audit log]({$ philter_docs }/sign_in_security.html#audit-events).
