@@ -4,7 +4,7 @@ Philter UI is served at `https://your-philter-ui-host:8081`. [Sign in](sign_in.m
 
 Every page works through Philter's [API]({$ philter_docs }/api_and_sdks/api.html) using your session key, so each action is subject to your role. Philter records changes, and some reads, in its [audit log]({$ philter_docs }/auditing.html); that page lists which events it records and under which principal. Use the API, not Philter UI, for redacting documents in production.
 
-When an action on an open page fails, the page shows Philter's explanation, or says that Philter could not be reached. If Philter cannot be reached while a page is opening, an error page is shown instead.
+When an action on a page fails, the page shows Philter's explanation, or says that Philter could not be reached. If that happens while a page is opening, the page says so in place of its content, with **Try again** to reload it.
 
 ## Testing Philter
 
