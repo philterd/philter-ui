@@ -57,7 +57,7 @@ public class MainLayout extends AppLayout {
         header.setWidthFull();
         header.getStyle().set("padding", "0 var(--lumo-space-m)");
 
-        addToNavbar(new DrawerToggle(), header);
+        addToNavbar(new DrawerToggle(), header, new IdleTimer(sessions));
 
         final SideNav home = new SideNav();
         home.addItem(new SideNavItem("Dashboard", DashboardView.class, VaadinIcon.DASHBOARD.create()));

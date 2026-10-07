@@ -31,6 +31,7 @@ import org.springframework.stereotype.Component;
  * kept alive by the heartbeats, and the next click would start a new Vaadin session still signed in. Ending
  * the HTTP session with the Vaadin one signs the person out, and {@link SessionKeyRevoker} revokes the key.
  * On the person's next interaction, the browser is sent to the sign-in page with the "session has ended" notice.
+ * Usually {@code IdleTimer} in the browser has already ended the session and opened that page.
  */
 @Component
 public class IdleSessions implements VaadinServiceInitListener {

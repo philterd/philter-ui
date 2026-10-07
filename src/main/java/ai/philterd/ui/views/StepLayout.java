@@ -40,7 +40,7 @@ abstract class StepLayout extends VerticalLayout {
         signOut = new Button("Sign out", e -> sessions.end(Notice.SIGNED_OUT));
         signOut.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-        add(new H2(title), new Paragraph(explanation));
+        add(new H2(title), new Paragraph(explanation), new IdleTimer(sessions));
     }
 
     /** Adds the step's fields and buttons, followed by the sign-out button. */
