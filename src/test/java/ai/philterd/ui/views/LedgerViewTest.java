@@ -72,4 +72,11 @@ class LedgerViewTest {
         assertEquals("ledger-a_b__c-export.json", LedgerView.exportFilename("a/b\\\"c"));
     }
 
+    @Test
+    void anUnreadableChainIsExplainedWithPhiltersWords() {
+        assertEquals("Philter could not read this chain's first entry, so the chain cannot be verified or exported. "
+                        + "Philter says: This entry could not be read, so its replacement is not shown.",
+                LedgerView.unreadableDetail("This entry could not be read, so its replacement is not shown. "));
+    }
+
 }

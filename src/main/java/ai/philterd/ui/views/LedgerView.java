@@ -28,6 +28,7 @@ import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.Sessions;
 import com.google.gson.Gson;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -103,8 +104,10 @@ public class LedgerView extends VerticalLayout {
         grid.addColumn(LedgerEntry::getDocumentId).setHeader("Document ID").setResizable(true).setAutoWidth(true);
         grid.addColumn(LedgerEntry::getFilename).setHeader("Filename").setResizable(true);
         grid.addColumn(entry -> ViewSupport.utc(entry.getTimestamp())).setHeader("Created").setAutoWidth(true);
+        grid.addComponentColumn(LedgerView::readStatus).setHeader("Status").setAutoWidth(true).setFlexGrow(0);
         grid.addComponentColumn(entry -> ViewSupport.button("View", VaadinIcon.EYE,
-                "View ledger chain " + entry.getDocumentId(), () -> openChain(entry.getDocumentId(), null)))
+                "View ledger chain " + entry.getDocumentId(),
+                () -> openChain(entry.getDocumentId(), null, entry.getReadError())))
                 .setHeader("View").setAutoWidth(true).setFlexGrow(0);
         if (canDelete) {
             grid.addComponentColumn(entry -> ViewSupport.button(null, VaadinIcon.TRASH,
@@ -168,8 +171,10 @@ public class LedgerView extends VerticalLayout {
         all.addColumn(LedgerEntry::getDocumentId).setHeader("Document ID").setResizable(true).setAutoWidth(true);
         all.addColumn(LedgerEntry::getOwner).setHeader("Owner").setResizable(true);
         all.addColumn(entry -> ViewSupport.utc(entry.getTimestamp())).setHeader("Created").setAutoWidth(true);
+        all.addComponentColumn(LedgerView::readStatus).setHeader("Status").setAutoWidth(true).setFlexGrow(0);
         all.addComponentColumn(entry -> ViewSupport.button("View", VaadinIcon.EYE,
-                "View ledger chain " + entry.getDocumentId(), () -> openChain(entry.getDocumentId(), entry.getOwner())))
+                "View ledger chain " + entry.getDocumentId(),
+                () -> openChain(entry.getDocumentId(), entry.getOwner(), entry.getReadError())))
                 .setHeader("View").setAutoWidth(true).setFlexGrow(0);
         all.setItems(
                 query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
@@ -185,8 +190,12 @@ public class LedgerView extends VerticalLayout {
 
     }
 
-    /** Shows a chain's entries and whether it verifies. The original values are never shown, only exported. */
-    private void openChain(final String documentId, final String owner) {
+    /**
+     * Shows a chain's entries and whether it verifies. The original values are never shown, only exported.
+     *
+     * @param readError Why Philter could not read the chain's head entry, from the listing, or {@code null}.
+     */
+    private void openChain(final String documentId, final String owner, final String readError) {
 
         final LedgerChain chain;
         try {
@@ -209,6 +218,9 @@ public class LedgerView extends VerticalLayout {
         dialog.add(new H3("Ledger Chain"),
                 new Paragraph("Document ID: " + documentId + (owner == null ? "" : " (owner: " + owner + ")")),
                 badge, new Paragraph(verificationDetail(chain)));
+        if (readError != null) {
+            dialog.add(new Paragraph(unreadableDetail(readError)));
+        }
 
         if (chain.getValidationError() != null) {
             // Philter does not return the entries of a chain it could not check.
@@ -216,7 +228,7 @@ public class LedgerView extends VerticalLayout {
             close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
             dialog.add(new Paragraph("Philter does not return the entries of a chain it could not check."));
             dialog.add(exportDownloader);
-            dialog.getFooter().add(exportButton(documentId, owner, exportDownloader), close);
+            dialog.getFooter().add(exportButton(documentId, owner, readError, exportDownloader), close);
             dialog.open();
             return;
         }
@@ -235,7 +247,7 @@ public class LedgerView extends VerticalLayout {
         final Button close = new Button("Close", e -> dialog.close());
         close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         dialog.add(exportDownloader);
-        dialog.getFooter().add(exportButton(documentId, owner, exportDownloader), close);
+        dialog.getFooter().add(exportButton(documentId, owner, readError, exportDownloader), close);
         dialog.open();
 
     }
@@ -245,7 +257,8 @@ public class LedgerView extends VerticalLayout {
      * log, and so a refusal can be shown with Philter's reason. The download starts only once Philter
      * has returned the export.
      */
-    private Button exportButton(final String documentId, final String owner, final Anchor downloader) {
+    private Button exportButton(final String documentId, final String owner, final String readError,
+                                final Anchor downloader) {
         final Button export = new Button("Export (JSON)", VaadinIcon.DOWNLOAD.create(), e -> {
             final byte[] json;
             try {
@@ -260,6 +273,11 @@ public class LedgerView extends VerticalLayout {
             downloader.getElement().executeJs("this.click()");
         });
         export.setTooltipText("Includes the original redacted values. Store it securely.");
+        if (readError != null) {
+            // Philter refuses with entry_unreadable; a refusal for a later entry is still shown when it comes.
+            export.setEnabled(false);
+            export.setTooltipText(EXPORT_UNAVAILABLE);
+        }
         return export;
     }
 
@@ -354,6 +372,27 @@ public class LedgerView extends VerticalLayout {
     static String countLabel(final int total, final boolean searching) {
         final String chains = total == 1 ? "1 chain" : total + " chains";
         return searching ? chains + " found." : chains + " in your ledger.";
+    }
+
+    static final String UNREADABLE_LABEL = "Cannot be read";
+
+    static final String EXPORT_UNAVAILABLE = "Philter does not export a chain with an entry it cannot read.";
+
+    /** A listing row's status: marked when Philter could not read the chain's head entry, with why. */
+    private static Component readStatus(final LedgerEntry entry) {
+        if (entry.getReadError() == null) {
+            return new Span();
+        }
+        final Span status = new Span(VaadinIcon.WARNING.create(), new Span(UNREADABLE_LABEL));
+        status.getElement().getThemeList().add("badge error");
+        status.getElement().setAttribute("title", unreadableDetail(entry.getReadError()));
+        return status;
+    }
+
+    /** What the person is told about a chain whose head entry Philter could not read. */
+    static String unreadableDetail(final String readError) {
+        return "Philter could not read this chain's first entry, so the chain cannot be verified or exported. "
+                + "Philter says: " + readError.strip();
     }
 
     static String exportFilename(final String documentId) {
