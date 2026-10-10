@@ -30,6 +30,24 @@ Philter UI verifies Philter's TLS certificate. Philter's Docker image serves HTT
 
 Serve Philter UI to its users over HTTPS, for example behind a reverse proxy that terminates TLS, since people send their passwords to it.
 
+### Docker Compose
+
+The `docker-compose.yml` in the [Philter UI repository](https://github.com/philterd/philter-ui) runs Philter UI, built from source, beside Philter 4.0.0 and the MongoDB and ph-eye services Philter needs. Philter has password sign-in turned on and serves plain HTTP on the private compose network, where Philter UI reaches it at `http://philter:8080`. It is meant for development and evaluation.
+
+```
+docker compose up -d --build
+```
+
+The `admin` user starts without a password. Set one with the bootstrap API key in `docker-compose.yml`, then sign in at `http://localhost:8081`:
+
+```
+curl -X PUT http://localhost:8080/api/users/admin/password \
+  -H "Authorization: Bearer sk_developmentonlydevelopmentonly01" \
+  -H "Content-Type: application/json" -d '{"password": "<16 or more characters>"}'
+```
+
+Before using it with real data, replace the development `PHILTER_ENCRYPTION_KEY`, `PHILTER_BOOTSTRAP_API_KEY`, and MongoDB password, and serve Philter UI over HTTPS.
+
 ### Client addresses
 
 Philter limits sign-in attempts per client address and records the client address with many of the events in its [audit log]({$ philter_docs }/auditing.html), such as sign-ins, audit log exports, and listings. Philter UI calls Philter on each person's behalf, so it passes that person's address to Philter in `X-Forwarded-For` on every request, from sign-in on. Otherwise every Philter UI user would share one sign-in limit, and those events would show Philter UI's address instead of the person's. A request Philter UI makes outside a person's request, such as signing out a session that timed out, carries no address.

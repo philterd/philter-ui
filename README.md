@@ -32,6 +32,24 @@ java -jar target/philter-ui-4.0.0-SNAPSHOT.jar
 
 Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Philter UI verifies Philter's TLS certificate, so a Philter with a self-signed certificate needs that certificate in a truststore passed with `-Djavax.net.ssl.trustStore=<path>`. See the [user guide](docs/docs/index.md).
 
+### Docker Compose
+
+`docker-compose.yml` runs Philter UI, built from this repository, beside Philter 4.0.0 and the MongoDB and ph-eye services Philter needs. Philter has password sign-in turned on and serves plain HTTP on the private compose network, where Philter UI reaches it at `http://philter:8080`. It is meant for development and evaluation.
+
+```
+docker compose up -d --build
+```
+
+The `admin` user starts without a password. Set one with the bootstrap API key in `docker-compose.yml`, then sign in at `http://localhost:8081`:
+
+```
+curl -X PUT http://localhost:8080/api/users/admin/password \
+  -H "Authorization: Bearer sk_developmentonlydevelopmentonly01" \
+  -H "Content-Type: application/json" -d '{"password": "<16 or more characters>"}'
+```
+
+Before using it with real data, replace the development `PHILTER_ENCRYPTION_KEY`, `PHILTER_BOOTSTRAP_API_KEY`, and MongoDB password, and serve Philter UI over HTTPS.
+
 ## License
 
 Apache License, version 2.0. See [LICENSE.txt](LICENSE.txt).

@@ -1,0 +1,64 @@
+services:
+
+  philter-ui:
+    build:
+      context: .
+    depends_on:
+      philter:
+        condition: service_started
+    environment:
+      PHILTER_URL: http://philter:8080
+      PORT: "8081"
+      SESSION_TIMEOUT_MINUTES: ${SESSION_TIMEOUT_MINUTES:-30}
+      DOCUMENT_TIMEOUT_SECONDS: ${DOCUMENT_TIMEOUT_SECONDS:-300}
+    ports:
+      - "8081:8081"
+    networks:
+      - philter
+
+  philter:
+    image: philterd/philter:${PHILTER_VERSION:-4.0.0}
+    depends_on:
+      ph-eye:
+        condition: service_started
+      mongodb:
+        condition: service_healthy
+    environment:
+      PASSWORD_SIGN_IN_ENABLED: "true"
+      SSL_ENABLED: "false"
+      MONGODB_CONNECTION_STRING: mongodb://philter:philter@mongodb:27017/philter?authSource=admin
+      PHEYE_ENDPOINT: http://ph-eye:5000/
+      PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:-pF46QOBznYcOZrnflw9HsRBIe9769uW/Bza2blBpHIk=}
+      PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-sk_developmentonlydevelopmentonly01}
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - philter
+
+  ph-eye:
+    image: philterd/ph-eye:1.3.0-pii_en_small
+    networks:
+      - philter
+
+  mongodb:
+    image: mongo:8.2.12
+    environment:
+      MONGO_INITDB_DATABASE: philter
+      MONGO_INITDB_ROOT_USERNAME: philter
+      MONGO_INITDB_ROOT_PASSWORD: philter
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - philter
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mongodb-data:
+
+networks:
+  philter:

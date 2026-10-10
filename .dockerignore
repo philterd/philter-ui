@@ -1,0 +1,11 @@
+.git
+.github
+.idea
+*.iml
+target
+node_modules
+docs
+src/main/frontend/generated
+src/main/bundles
+vite.generated.ts
+.env
