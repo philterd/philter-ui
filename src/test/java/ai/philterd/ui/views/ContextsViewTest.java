@@ -15,10 +15,15 @@
  */
 package ai.philterd.ui.views;
 
+import ai.philterd.philter.model.ContextDetails;
+import ai.philterd.philter.model.DisambiguationScope;
 import ai.philterd.philter.model.exceptions.ClientException;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class ContextsViewTest {
 
@@ -50,6 +55,57 @@ class ContextsViewTest {
                 new ClientException("HTTP 400", 400, "Context name cannot be blank.")));
         assertEquals("The context could not be created.",
                 ContextsView.createFailure(new ClientException("HTTP 500", 500, null)));
+    }
+
+
+    private static ContextDetails details(final boolean disambiguation, final String scope, final boolean ledger) {
+        final ContextDetails details = new ContextDetails();
+        details.setEntityTypeDisambiguation(disambiguation);
+        details.setDisambiguationScope(scope);
+        details.setLedger(ledger);
+        return details;
+    }
+
+    @Test
+    void theScopesAreThoseTheSdkDefines() {
+        assertEquals(List.of(DisambiguationScope.DOCUMENT, DisambiguationScope.CONTEXT), ContextsView.SCOPES);
+        assertEquals("Each document on its own", ContextsView.scopeLabel(DisambiguationScope.DOCUMENT));
+        assertEquals("Across the context: remember what is learned for later documents",
+                ContextsView.scopeLabel(DisambiguationScope.CONTEXT));
+    }
+
+    @Test
+    void creatingSendsTheScopeOnlyWithDisambiguation() {
+        assertEquals(DisambiguationScope.CONTEXT, ContextsView.createScope(true, DisambiguationScope.CONTEXT));
+        assertEquals(DisambiguationScope.DOCUMENT, ContextsView.createScope(true, DisambiguationScope.DOCUMENT));
+        assertNull(ContextsView.createScope(false, DisambiguationScope.CONTEXT), "no effect without disambiguation");
+    }
+
+    @Test
+    void editingSendsTheScopeOnlyWhenItChanged() {
+        final ContextDetails document = details(true, DisambiguationScope.DOCUMENT, false);
+        assertNull(ContextsView.scopeChange(document, DisambiguationScope.DOCUMENT), "unchanged, so kept");
+        assertEquals(DisambiguationScope.CONTEXT, ContextsView.scopeChange(document, DisambiguationScope.CONTEXT));
+
+        final ContextDetails context = details(true, DisambiguationScope.CONTEXT, false);
+        assertEquals(DisambiguationScope.CONTEXT, ContextsView.currentScope(context), "the edit dialog starts here");
+        assertEquals(DisambiguationScope.DOCUMENT, ContextsView.scopeChange(context, DisambiguationScope.DOCUMENT));
+
+        // A context Philter reports no scope for is at document, so choosing document changes nothing.
+        final ContextDetails unset = details(true, null, false);
+        assertEquals(DisambiguationScope.DOCUMENT, ContextsView.currentScope(unset));
+        assertNull(ContextsView.scopeChange(unset, DisambiguationScope.DOCUMENT));
+    }
+
+    @Test
+    void theViewDialogStatesTheScope() {
+        assertEquals("Entity type disambiguation is on, across the context: what it learns is remembered for later "
+                + "documents. The redaction ledger is on.",
+                ContextsView.settingsSummary(details(true, DisambiguationScope.CONTEXT, true)));
+        assertEquals("Entity type disambiguation is on, for each document on its own. The redaction ledger is off.",
+                ContextsView.settingsSummary(details(true, DisambiguationScope.DOCUMENT, false)));
+        assertEquals("Entity type disambiguation is off. The redaction ledger is off.",
+                ContextsView.settingsSummary(details(false, DisambiguationScope.CONTEXT, false)));
     }
 
 }

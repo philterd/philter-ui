@@ -17,6 +17,7 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.ContextDetails;
+import ai.philterd.philter.model.DisambiguationScope;
 import ai.philterd.philter.model.OwnedName;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
@@ -37,6 +38,7 @@ import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
@@ -131,8 +133,7 @@ public class ContextsView extends VerticalLayout {
         dialog.setWidth("500px");
         dialog.add(new H3("Context"));
         dialog.add(new Paragraph("Filter type counts for context: " + name + (owner == null ? "" : " (owner: " + owner + ")")));
-        dialog.add(new Paragraph("Entity type disambiguation is " + onOff(details.isEntityTypeDisambiguation())
-                + ". The redaction ledger is " + onOff(details.isLedger()) + "."));
+        dialog.add(new Paragraph(settingsSummary(details)));
 
         if (details.getSize() == 0) {
             dialog.add(new Paragraph("No entries found in this context."));
@@ -159,13 +160,15 @@ public class ContextsView extends VerticalLayout {
         name.setWidthFull();
         name.setRequired(true);
         final Checkbox disambiguation = new Checkbox("Enable entity type disambiguation for this context.");
+        final Select<String> scope = scopeSelect(DisambiguationScope.DOCUMENT, disambiguation);
         final Checkbox ledger = new Checkbox("Enable the redaction ledger for this context.");
 
-        final Dialog dialog = settingsDialog("New Context", name, disambiguation, ledger);
+        final Dialog dialog = settingsDialog("New Context", name, disambiguation, scope, ledger);
 
         final Button save = new Button("Save", e -> {
             try {
-                client.createContext(name.getValue(), disambiguation.getValue(), ledger.getValue());
+                client.createContext(name.getValue(), disambiguation.getValue(),
+                        createScope(disambiguation.getValue(), scope.getValue()), ledger.getValue(), null);
                 dialog.close();
                 grid.getDataProvider().refreshAll();
                 Notifications.success("Context created.");
@@ -196,22 +199,24 @@ public class ContextsView extends VerticalLayout {
         nameField.setReadOnly(true);
         final Checkbox disambiguation = new Checkbox("Enable entity type disambiguation for this context.",
                 details.isEntityTypeDisambiguation());
+        final Select<String> scope = scopeSelect(currentScope(details), disambiguation);
         final Checkbox ledger = new Checkbox("Enable the redaction ledger for this context.", details.isLedger());
         ledger.addValueChangeListener(e -> ledger.setHelperText(details.isLedger() && !e.getValue()
                 ? "Turning the ledger off stops recording redaction evidence for this context." : null));
 
-        final Dialog dialog = settingsDialog("Edit Context", nameField, disambiguation, ledger);
+        final Dialog dialog = settingsDialog("Edit Context", nameField, disambiguation, scope, ledger);
 
         final Button save = new Button("Save", e -> {
             final Boolean newDisambiguation = disambiguation.getValue() == details.isEntityTypeDisambiguation()
                     ? null : disambiguation.getValue();
+            final String newScope = scopeChange(details, scope.getValue());
             final Boolean newLedger = ledger.getValue() == details.isLedger() ? null : ledger.getValue();
-            if (newDisambiguation == null && newLedger == null) {
+            if (newDisambiguation == null && newScope == null && newLedger == null) {
                 dialog.close();
                 return;
             }
             try {
-                client.updateContext(name, newDisambiguation, newLedger);
+                client.updateContext(name, newDisambiguation, newScope, newLedger, null);
                 dialog.close();
                 Notifications.success("Context updated.");
             } catch (final ClientException | ServiceUnavailableException | IOException ex) {
@@ -275,8 +280,8 @@ public class ContextsView extends VerticalLayout {
     }
 
     private static Dialog settingsDialog(final String title, final TextField name, final Checkbox disambiguation,
-                                         final Checkbox ledger) {
-        final VerticalLayout fields = new VerticalLayout(name, disambiguation,
+                                         final Select<String> scope, final Checkbox ledger) {
+        final VerticalLayout fields = new VerticalLayout(name, disambiguation, scope,
                 PhilterDocs.link("Learn more about entity type disambiguation.", "redaction/contexts.html"),
                 ledger, PhilterDocs.link("Learn more about the redaction ledger.", "redaction/ledgers.html"));
         final Dialog dialog = new Dialog();
@@ -300,6 +305,59 @@ public class ContextsView extends VerticalLayout {
 
     private static String messageOr(final ClientException e, final String fallback) {
         return e.getErrorMessage() == null ? fallback : e.getErrorMessage();
+    }
+
+    /** The disambiguation scopes Philter accepts, in the order they are offered. */
+    static final List<String> SCOPES = List.of(DisambiguationScope.DOCUMENT, DisambiguationScope.CONTEXT);
+
+    /**
+     * A selector for the disambiguation scope, starting at {@code initial}. It is shown only while entity type
+     * disambiguation is on, since the scope has no effect otherwise.
+     */
+    private static Select<String> scopeSelect(final String initial, final Checkbox disambiguation) {
+        final Select<String> scope = new Select<>();
+        scope.setLabel("Disambiguation scope");
+        scope.setItems(SCOPES);
+        scope.setItemLabelGenerator(ContextsView::scopeLabel);
+        scope.setValue(initial);
+        scope.setWidthFull();
+        scope.setVisible(disambiguation.getValue());
+        disambiguation.addValueChangeListener(e -> scope.setVisible(e.getValue()));
+        return scope;
+    }
+
+    /** How a scope is described to a person. */
+    static String scopeLabel(final String scope) {
+        if (DisambiguationScope.CONTEXT.equalsIgnoreCase(scope)) {
+            return "Across the context: remember what is learned for later documents";
+        }
+        return "Each document on its own";
+    }
+
+    /** The context's scope, which Philter reports as document when none was set. */
+    static String currentScope(final ContextDetails details) {
+        final String scope = details.getDisambiguationScope();
+        return DisambiguationScope.CONTEXT.equalsIgnoreCase(scope) ? DisambiguationScope.CONTEXT : DisambiguationScope.DOCUMENT;
+    }
+
+    /** The scope to send when creating a context: only when disambiguation is on, since it means nothing otherwise. */
+    static String createScope(final boolean disambiguation, final String scope) {
+        return disambiguation ? scope : null;
+    }
+
+    /** The scope to send when editing a context: {@code null} to keep it, when the person did not change it. */
+    static String scopeChange(final ContextDetails details, final String selected) {
+        return selected == null || selected.equals(currentScope(details)) ? null : selected;
+    }
+
+    /** The context's settings, in words, for the View dialog. */
+    static String settingsSummary(final ContextDetails details) {
+        final String disambiguation = details.isEntityTypeDisambiguation()
+                ? "Entity type disambiguation is on, " + (DisambiguationScope.CONTEXT.equals(currentScope(details))
+                        ? "across the context: what it learns is remembered for later documents."
+                        : "for each document on its own.")
+                : "Entity type disambiguation is off.";
+        return disambiguation + " The redaction ledger is " + onOff(details.isLedger()) + ".";
     }
 
     private static String onOff(final boolean value) {
