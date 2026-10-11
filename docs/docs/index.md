@@ -22,6 +22,7 @@ java -jar philter-ui-{$ philter_ui_version }.jar
 | `PORT` | The port Philter UI listens on, so it can run beside Philter on 8080. | `8081` |
 | `SESSION_TIMEOUT_MINUTES` | Minutes without interaction in Philter UI before a person is signed out, whether or not the tab is still open. See [Sessions](sign_in.md#sessions). | `30` |
 | `DOCUMENT_TIMEOUT_SECONDS` | Seconds Philter UI waits for Philter to redact a PDF on the Dashboard. | `300` |
+| `MAX_PDF_BYTES` | The largest PDF the Dashboard accepts, in bytes. `0` follows Philter's own limit, its `MAX_FILE_SIZE_BYTES`, which Philter UI reads from Philter; a smaller value lowers it. When Philter's limits cannot be read, this value or 10 MB is used. See [Dashboard](dashboard.md). | `0` |
 | `TRUSTED_PROXIES` | The reverse proxies in front of Philter UI, as comma-separated IP addresses and CIDR ranges. See [Client addresses](#client-addresses). | None |
 
 Philter must have password sign-in enabled with `PASSWORD_SIGN_IN_ENABLED=true`; it is off by default. See Philter's [Sign-in Security]({$ philter_docs }/sign_in_security.html).

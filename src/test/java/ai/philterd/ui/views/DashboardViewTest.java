@@ -15,11 +15,14 @@
  */
 package ai.philterd.ui.views;
 
+import ai.philterd.philter.model.exceptions.ClientException;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class DashboardViewTest {
@@ -59,6 +62,37 @@ class DashboardViewTest {
         assertEquals("document-redacted.pdf", DashboardView.redactedFilename(null));
         assertEquals("document-redacted.pdf", DashboardView.redactedFilename(".pdf"));
         assertEquals("document-redacted.pdf", DashboardView.redactedFilename("...pdf"));
+    }
+
+
+    private static final long MB = 1024 * 1024;
+
+    @Test
+    void theLimitIsPhiltersLoweredByTheSetting() {
+        assertEquals(10 * MB, DashboardView.pdfLimit(10 * MB, 0), "Philter's limit when no setting is given");
+        assertEquals(25 * MB, DashboardView.pdfLimit(25 * MB, 0), "a raised Philter limit is followed");
+        assertEquals(5 * MB, DashboardView.pdfLimit(25 * MB, 5 * MB), "the setting can lower it");
+        assertEquals(25 * MB, DashboardView.pdfLimit(25 * MB, 50 * MB), "but not raise it past Philter's");
+        assertEquals(10 * MB, DashboardView.pdfLimit(null, 0), "Philter's default when its limits cannot be read");
+        assertEquals(20 * MB, DashboardView.pdfLimit(null, 20 * MB), "or the setting");
+    }
+
+    @Test
+    void aPdfOverTheLimitIsRefusedBeforeItIsSent() {
+        final byte[] large = new byte[(int) (2 * MB)];
+        System.arraycopy(PDF, 0, large, 0, PDF.length);
+        assertNull(DashboardView.pdfProblem("default", large, 2 * MB));
+        assertEquals("The PDF is too large. Philter accepts a PDF of at most 1.5 MB.",
+                DashboardView.pdfProblem("default", large, (long) (1.5 * MB)));
+        assertEquals("Select a policy.", DashboardView.pdfProblem(null, large, MB), "other problems come first");
+    }
+
+    @Test
+    void philtersSizeRefusalIsNamed() {
+        assertTrue(DashboardView.isTooLarge(new ClientException("HTTP 413", 413, "Too large.", "payload_too_large")));
+        assertTrue(DashboardView.isTooLarge(new ClientException("HTTP 413", 413, null)));
+        assertFalse(DashboardView.isTooLarge(new ClientException("HTTP 400", 400, "Bad.", "invalid_request")));
+        assertEquals("The PDF is too large. Philter accepts a PDF of at most 10 MB.", DashboardView.tooLarge(10 * MB));
     }
 
 }

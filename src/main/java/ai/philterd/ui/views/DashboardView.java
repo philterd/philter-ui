@@ -17,6 +17,8 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.ApiKey;
+import ai.philterd.philter.model.Limits;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.Pages;
@@ -44,6 +46,7 @@ import com.vaadin.flow.server.streams.DownloadHandler;
 import com.vaadin.flow.server.streams.DownloadResponse;
 import com.vaadin.flow.server.streams.UploadHandler;
 import jakarta.annotation.security.RolesAllowed;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -60,8 +63,8 @@ import java.util.List;
 @RolesAllowed(Roles.USER)
 public class DashboardView extends VerticalLayout {
 
-    /** The largest PDF the page accepts. It is held in memory while Philter redacts it. */
-    static final int MAX_PDF_BYTES = 50 * 1024 * 1024;
+    /** The largest PDF Philter accepts by default ({@code MAX_FILE_SIZE_BYTES}), used when its limits cannot be read. */
+    static final long DEFAULT_PDF_BYTES = 10L * 1024 * 1024;
 
     static final String DEFAULT_POLICY = "default";
 
@@ -74,11 +77,15 @@ public class DashboardView extends VerticalLayout {
     private byte[] pdf;
     private String pdfName;
 
-    public DashboardView(final PhilterClients clients) {
+    /** The largest PDF this page accepts, which is held in memory while Philter redacts it. */
+    private final long maxPdfBytes;
+
+    public DashboardView(final PhilterClients clients, @Value("${philter.max-pdf-bytes}") final long configuredMaxPdfBytes) {
 
         final PhilterUser user = Sessions.currentUser().orElseThrow();
         this.client = clients.forUser(user);
         this.documentClient = clients.forDocuments(user);
+        this.maxPdfBytes = pdfLimit(philterDocumentLimit(), configuredMaxPdfBytes);
 
         setSizeFull();
         add(new H2("Dashboard"));
@@ -174,7 +181,7 @@ public class DashboardView extends VerticalLayout {
         upload.setUploadFormat(UploadFormat.RAW);
         upload.setAcceptedFileTypes("application/pdf", ".pdf");
         upload.setMaxFiles(1);
-        upload.setMaxFileSize(MAX_PDF_BYTES);
+        upload.setMaxFileSize((int) Math.min(maxPdfBytes, Integer.MAX_VALUE));
         upload.addFileRejectedListener(e -> Notifications.failure(e.getErrorMessage()));
         upload.addFileRemovedListener(e -> {
             pdf = null;
@@ -187,7 +194,7 @@ public class DashboardView extends VerticalLayout {
         submit.setDisableOnClick(true);
         submit.addClickListener(e -> {
             try {
-                final String problem = pdfProblem(policy.getValue(), pdf);
+                final String problem = pdfProblem(policy.getValue(), pdf, maxPdfBytes);
                 if (problem != null) {
                     Notifications.failure(problem);
                     return;
@@ -201,7 +208,13 @@ public class DashboardView extends VerticalLayout {
                 download.setText("Download " + name);
                 download.setVisible(true);
                 Notifications.success("PDF redacted.");
-            } catch (final ClientException | ServiceUnavailableException | IOException ex) {
+            } catch (final ClientException ex) {
+                if (isTooLarge(ex)) {
+                    Notifications.failure(tooLarge(maxPdfBytes));
+                } else {
+                    Notifications.failure(ex, "Philter could not redact the PDF.");
+                }
+            } catch (final ServiceUnavailableException | IOException ex) {
                 Notifications.failure(ex, "Philter could not redact the PDF.");
             } finally {
                 submit.setEnabled(true);
@@ -209,7 +222,7 @@ public class DashboardView extends VerticalLayout {
         });
 
         final VerticalLayout layout = new VerticalLayout(new Paragraph("Upload a PDF of at most "
-                + (MAX_PDF_BYTES / (1024 * 1024)) + " MB. Philter returns the redacted PDF to download."),
+                + megabytes(maxPdfBytes) + ". Philter returns the redacted PDF to download."),
                 upload, submit, download);
         layout.setMaxWidth("900px");
         return layout;
@@ -227,6 +240,55 @@ public class DashboardView extends VerticalLayout {
             return "Enter text to redact.";
         }
         return null;
+    }
+
+    /** What stops the PDF being sent, or {@code null}, checking its size against {@code limit} too. */
+    static String pdfProblem(final String policyName, final byte[] content, final long limit) {
+        final String problem = pdfProblem(policyName, content);
+        if (problem == null && content.length > limit) {
+            return tooLarge(limit);
+        }
+        return problem;
+    }
+
+    /**
+     * The largest PDF to accept: Philter's limit when it could be read, lowered to {@code configured} when that
+     * is set ({@code MAX_PDF_BYTES}) and smaller. Without Philter's limit, {@code configured} if set, else
+     * Philter's default.
+     */
+    static long pdfLimit(final Long philterLimit, final long configured) {
+        if (philterLimit != null && philterLimit > 0) {
+            return configured > 0 ? Math.min(philterLimit, configured) : philterLimit;
+        }
+        return configured > 0 ? configured : DEFAULT_PDF_BYTES;
+    }
+
+    /** Whether Philter refused the document as too large. */
+    static boolean isTooLarge(final ClientException e) {
+        return e.getStatusCode() == 413 || ErrorReasons.PAYLOAD_TOO_LARGE.equals(e.getReason());
+    }
+
+    /** What to tell a person whose PDF is over the limit. */
+    static String tooLarge(final long limit) {
+        return "The PDF is too large. Philter accepts a PDF of at most " + megabytes(limit) + ".";
+    }
+
+    /** A size in megabytes, as a person reads it: 10 MB, or 2.5 MB. */
+    static String megabytes(final long bytes) {
+        final double megabytes = bytes / (1024.0 * 1024.0);
+        return (megabytes == Math.rint(megabytes) ? String.valueOf((long) megabytes)
+                : String.format(java.util.Locale.ROOT, "%.1f", megabytes)) + " MB";
+    }
+
+    /** Philter's largest document, or {@code null} when its limits cannot be read. */
+    private Long philterDocumentLimit() {
+        try {
+            final Limits limits = client.getLimits();
+            return limits == null || limits.getRequests() == null ? null : limits.getRequests().getMaxDocumentBytes();
+        } catch (final ClientException | ServiceUnavailableException | IOException e) {
+            // The page still works, with the configured or default limit.
+            return null;
+        }
     }
 
     /** What stops the PDF being sent, or {@code null}. */
