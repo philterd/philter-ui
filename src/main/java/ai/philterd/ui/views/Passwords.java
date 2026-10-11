@@ -15,7 +15,8 @@
  */
 package ai.philterd.ui.views;
 
-import java.nio.charset.StandardCharsets;
+import ai.philterd.ui.model.PhilterRules;
+
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -23,13 +24,6 @@ import java.util.List;
 
 /** Philter's password rules, checked here too so a person sees a mistake before the request is sent. */
 final class Passwords {
-
-    static final int MIN_LENGTH = 16;
-    static final int MAX_BYTES = 72;
-
-    static final String RULES = "At least " + MIN_LENGTH + " characters, and at most " + MAX_BYTES
-            + " bytes. Use a mix of upper and lowercase letters, numbers, and symbols, or a passphrase of 5 to 7 "
-            + "unrelated words.";
 
     static final int GENERATED_LENGTH = 20;
 
@@ -44,31 +38,30 @@ final class Passwords {
     private Passwords() {
     }
 
-    /** A random password that meets the rules, with at least one character of each kind. */
-    static String generate() {
+    /**
+     * A random password that meets Philter's rules, with at least one character of each kind: {@link #GENERATED_LENGTH}
+     * characters, or more if Philter requires more, and no more bytes than it allows. Every character is one byte.
+     */
+    static String generate(final PhilterRules rules) {
+        int length = GENERATED_LENGTH;
+        if (rules.passwordMinimumCharacters() != null) {
+            length = Math.max(length, rules.passwordMinimumCharacters());
+        }
+        if (rules.passwordMaximumBytes() != null) {
+            length = Math.min(length, rules.passwordMaximumBytes());
+        }
         final String all = LOWER + UPPER + DIGITS + SYMBOLS;
-        final List<Character> chars = new ArrayList<>(GENERATED_LENGTH);
+        final List<Character> chars = new ArrayList<>(length);
         for (final String kind : List.of(LOWER, UPPER, DIGITS, SYMBOLS)) {
             chars.add(kind.charAt(RANDOM.nextInt(kind.length())));
         }
-        while (chars.size() < GENERATED_LENGTH) {
+        while (chars.size() < length) {
             chars.add(all.charAt(RANDOM.nextInt(all.length())));
         }
         Collections.shuffle(chars, RANDOM);
-        final StringBuilder password = new StringBuilder(GENERATED_LENGTH);
+        final StringBuilder password = new StringBuilder(length);
         chars.forEach(password::append);
         return password.toString();
-    }
-
-    /** What is wrong with the password, or {@code null} if it meets the rules. */
-    static String problem(final String password) {
-        if (password == null || password.length() < MIN_LENGTH) {
-            return "The password must be at least " + MIN_LENGTH + " characters.";
-        }
-        if (password.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES) {
-            return "The password must be at most " + MAX_BYTES + " bytes.";
-        }
-        return null;
     }
 
 }

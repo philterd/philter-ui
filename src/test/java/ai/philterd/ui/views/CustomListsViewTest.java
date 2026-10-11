@@ -15,7 +15,9 @@
  */
 package ai.philterd.ui.views;
 
+import ai.philterd.ui.TestRules;
 import ai.philterd.ui.model.Lines;
+import ai.philterd.ui.model.PhilterRules;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -29,18 +31,24 @@ class CustomListsViewTest {
 
     @Test
     void blankLinesDoNotCountTowardTheLimit() {
-        final String text = String.join("\n\n", Collections.nCopies(CustomListsView.MAXIMUM_ITEMS, "x"));
-        assertNull(CustomListsView.itemsProblem(Lines.terms(text)));
+        final String text = String.join("\n\n", Collections.nCopies(100, "x"));
+        assertNull(CustomListsView.itemsProblem(Lines.terms(text), TestRules.defaults()));
     }
 
     @Test
     void philtersLimitsAreCheckedBeforeSending() {
-        assertEquals("Enter at least one item.", CustomListsView.itemsProblem(List.of()));
-        assertTrue(CustomListsView.itemsProblem(Collections.nCopies(CustomListsView.MAXIMUM_ITEMS + 1, "x"))
+        assertEquals("Enter at least one item.", CustomListsView.itemsProblem(List.of(), TestRules.defaults()));
+        assertTrue(CustomListsView.itemsProblem(Collections.nCopies(101, "x"), TestRules.defaults())
                 .startsWith("A list can have at most 100 items"));
-        assertTrue(CustomListsView.itemsProblem(List.of("x".repeat(CustomListsView.MAXIMUM_ITEM_LENGTH + 1)))
+        assertTrue(CustomListsView.itemsProblem(List.of("x".repeat(51)), TestRules.defaults())
                 .startsWith("Each item can be at most 50 characters"));
-        assertNull(CustomListsView.itemsProblem(List.of("x".repeat(CustomListsView.MAXIMUM_ITEM_LENGTH))));
+        assertNull(CustomListsView.itemsProblem(List.of("x".repeat(50)), TestRules.defaults()));
+    }
+
+    @Test
+    void unknownLimitsAreLeftToPhilter() {
+        assertNull(CustomListsView.itemsProblem(Collections.nCopies(500, "x".repeat(500)), PhilterRules.unknown()));
+        assertEquals("Enter at least one item.", CustomListsView.itemsProblem(List.of(), PhilterRules.unknown()));
     }
 
 }

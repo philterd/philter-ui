@@ -40,7 +40,6 @@ import java.util.List;
 final class PolicyHistoryDialog {
 
     /** The most revisions Philter returns at once, newest first. */
-    static final int REVISIONS = 100;
 
     private final PhilterClient client;
     private final String name;
@@ -56,7 +55,9 @@ final class PolicyHistoryDialog {
 
         final List<PolicyVersionSummary> versions;
         try {
-            versions = ViewSupport.orEmpty(client.getPolicyVersions(name, null, 0, REVISIONS));
+            // As many as Philter returns in one page, newest first.
+            versions = ViewSupport.orEmpty(client.getPolicyVersions(name, null, 0,
+                    ViewSupport.rules(client).maximumPageSize()));
         } catch (final ClientException | ServiceUnavailableException | IOException e) {
             Notifications.failure(e, "The policy's history could not be read.");
             return;

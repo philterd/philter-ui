@@ -16,17 +16,18 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
-import ai.philterd.philter.model.AdminSettings;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
+import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.security.PhilterFailures;
 import ai.philterd.ui.security.PhilterUnreachableException;
-import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.SignInMessages;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.server.VaadinRequest;
+import com.vaadin.flow.server.VaadinService;
 
 import java.io.IOException;
 import java.time.OffsetDateTime;
@@ -34,7 +35,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Optional;
 
 /** Small pieces shared by the views that list and edit Philter resources. */
 final class ViewSupport {
@@ -44,38 +44,10 @@ final class ViewSupport {
         T get() throws IOException;
     }
 
-    static final String SETTINGS_UNREADABLE = "Philter's settings could not be read, so tabs listing every user's "
-            + "resources and ledger deletion are hidden.";
-
     private static final DateTimeFormatter UTC = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'")
             .withZone(ZoneOffset.UTC);
 
     private ViewSupport() {
-    }
-
-    /**
-     * Philter's admin settings, which say what an administrator may do here, or empty for a person who
-     * is not an administrator or when they cannot be read, which is shown to the person.
-     */
-    static Optional<AdminSettings> adminSettings(final PhilterUser user, final PhilterClient client) {
-        if (!user.isAdministrator()) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.ofNullable(client.getAdminSettings());
-        } catch (final ClientException | ServiceUnavailableException e) {
-            // Said rather than silent: without the settings, every-user tabs and ledger deletion are hidden.
-            Notifications.failure(settingsFailure(e));
-            return Optional.empty();
-        } catch (final IOException e) {
-            Notifications.failure(settingsFailure(new PhilterUnreachableException(e)));
-            return Optional.empty();
-        }
-    }
-
-    /** What to tell an administrator when Philter's settings cannot be read. */
-    static String settingsFailure(final RuntimeException e) {
-        return SETTINGS_UNREADABLE + " " + why(e);
     }
 
     /** Why a request to Philter failed: Philter's explanation, its status, or that it cannot be reached. */
@@ -84,12 +56,46 @@ final class ViewSupport {
         return message == null ? SignInMessages.UNAVAILABLE : message;
     }
 
+    /** The request attribute Philter's rules are kept under, so they are read once per request. */
+    private static final String RULES = PhilterRules.class.getName();
+
     /**
-     * Whether to show an administrator every user's resources: the person is an administrator and
-     * Philter allows cross-user access ({@code ADMIN_CROSS_USER_ACCESS_ENABLED}).
+     * Philter's rules and what the person may do, from {@code GET /api/limits}, read once per request. When they
+     * cannot be read, the rules are unknown: checks pass, so Philter refuses invalid input itself, and
+     * capabilities are off. A rejected session key is not caught, so the session still ends.
      */
-    static boolean showAllUsers(final PhilterUser user, final PhilterClient client) {
-        return adminSettings(user, client).map(AdminSettings::isCrossUserAccessEnabled).orElse(false);
+    static PhilterRules rules(final PhilterClient client) {
+        final VaadinRequest request = VaadinService.getCurrentRequest();
+        if (request != null && request.getAttribute(RULES) instanceof PhilterRules cached) {
+            return cached;
+        }
+        PhilterRules rules;
+        try {
+            rules = PhilterRules.of(client.getLimits());
+        } catch (final ClientException | ServiceUnavailableException | IOException e) {
+            rules = PhilterRules.unknown();
+        }
+        if (request != null) {
+            request.setAttribute(RULES, rules);
+        }
+        return rules;
+    }
+
+    /** Philter's rules read again, for after a change in this request that they count, such as a new context. */
+    static PhilterRules rereadRules(final PhilterClient client) {
+        final VaadinRequest request = VaadinService.getCurrentRequest();
+        if (request != null) {
+            request.removeAttribute(RULES);
+        }
+        return rules(client);
+    }
+
+    /**
+     * Whether to show every user's resources: Philter says the person may reach them, which needs an
+     * administrator and {@code ADMIN_CROSS_USER_ACCESS_ENABLED}.
+     */
+    static boolean showAllUsers(final PhilterClient client) {
+        return rules(client).mayReachOtherUsers();
     }
 
     /** A time from Philter in UTC, or Philter's text unchanged if it cannot be read. */

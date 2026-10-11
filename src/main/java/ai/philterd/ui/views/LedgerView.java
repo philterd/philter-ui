@@ -16,13 +16,13 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
-import ai.philterd.philter.model.AdminSettings;
 import ai.philterd.philter.model.GetLedgerResponse;
 import ai.philterd.philter.model.LedgerChain;
 import ai.philterd.philter.model.LedgerEntry;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.Pages;
+import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
@@ -55,7 +55,6 @@ import jakarta.annotation.security.RolesAllowed;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
 
 /**
  * The person's redaction ledgers, through Philter's ledger API. Administrators also see every user's
@@ -95,9 +94,9 @@ public class LedgerView extends VerticalLayout {
         final PhilterUser user = Sessions.currentUser().orElseThrow();
         this.client = clients.forUser(user);
 
-        final Optional<AdminSettings> settings = ViewSupport.adminSettings(user, client);
-        // Philter refuses deletion unless the person is an administrator and LEDGER_DELETION_ENABLED is set.
-        this.canDelete = settings.map(AdminSettings::isLedgerDeletionEnabled).orElse(false);
+        final PhilterRules rules = ViewSupport.rules(client);
+        // Philter says whether the person may delete chains: an administrator, with LEDGER_DELETION_ENABLED on.
+        this.canDelete = rules.mayDeleteLedgerChains();
 
         setSizeFull();
 
@@ -156,7 +155,7 @@ public class LedgerView extends VerticalLayout {
 
         final TabSheet tabs = new TabSheet();
         tabs.add("My Ledgers", mine);
-        if (settings.map(AdminSettings::isCrossUserAccessEnabled).orElse(false)) {
+        if (rules.mayReachOtherUsers()) {
             tabs.add("All Ledgers", allLedgers());
         }
         tabs.setSizeFull();

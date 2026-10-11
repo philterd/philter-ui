@@ -18,6 +18,7 @@ package ai.philterd.ui.views;
 import ai.philterd.philter.model.AdminSettings;
 import ai.philterd.philter.model.UpdateAdminSettingsRequest;
 import ai.philterd.philter.model.User;
+import ai.philterd.ui.TestRules;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -107,12 +108,14 @@ class AdminViewTest {
     @Test
     void auditRangesAreWholeDaysUpToThirtyOne() {
         final LocalDate day = LocalDate.of(2026, 10, 1);
-        assertNull(AdminView.auditRangeProblem(day, day));
-        assertNull(AdminView.auditRangeProblem(day, day.plusDays(30)));
-        assertEquals("An export can cover at most 31 days.", AdminView.auditRangeProblem(day, day.plusDays(31)));
-        assertEquals("From must be on or before To.", AdminView.auditRangeProblem(day.plusDays(1), day));
-        assertEquals("Choose both a From and a To date.", AdminView.auditRangeProblem(null, day));
-        assertEquals("Choose both a From and a To date.", AdminView.auditRangeProblem(day, null));
+        assertNull(AdminView.auditRangeProblem(day, day, 30));
+        assertNull(AdminView.auditRangeProblem(day, day.plusDays(30), 30));
+        assertEquals("An export can cover at most 31 days.", AdminView.auditRangeProblem(day, day.plusDays(31), 30));
+        assertEquals("From must be on or before To.", AdminView.auditRangeProblem(day.plusDays(1), day, 30));
+        assertEquals("Choose both a From and a To date.", AdminView.auditRangeProblem(null, day, 30));
+        assertEquals("Choose both a From and a To date.", AdminView.auditRangeProblem(day, null, 30));
+        assertEquals("An export can cover at most 8 days.", AdminView.auditRangeProblem(day, day.plusDays(8), 7));
+        assertNull(AdminView.auditRangeProblem(day, day.plusDays(400), null));
     }
 
     @Test
@@ -172,8 +175,8 @@ class AdminViewTest {
     void generatedPasswordsMeetTheRules() {
         final Set<String> seen = new HashSet<>();
         for (int i = 0; i < 50; i++) {
-            final String password = Passwords.generate();
-            assertNull(Passwords.problem(password));
+            final String password = Passwords.generate(TestRules.defaults());
+            assertNull(TestRules.defaults().passwordProblem(password));
             assertEquals(Passwords.GENERATED_LENGTH, password.length());
             assertTrue(password.chars().anyMatch(c -> Passwords.LOWER.indexOf(c) >= 0), password);
             assertTrue(password.chars().anyMatch(c -> Passwords.UPPER.indexOf(c) >= 0), password);

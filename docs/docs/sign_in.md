@@ -9,7 +9,9 @@ Philter UI has no user accounts of its own. Users, passwords, and MFA enrollment
 3. If they are valid, Philter returns a session key for your user. If you are enrolled in MFA, Philter UI first asks for a code from your authenticator app, and the key is issued only after Philter accepts the code.
 4. Philter UI keeps the session key on its server, never in your browser, and uses it for every request it makes to Philter on your behalf.
 
-Philter applies your role to each request, so a person who is not an administrator cannot reach administrator functions.
+Philter applies your role to each request, so a person who is not an administrator cannot reach administrator functions. Philter UI also checks your role with Philter each time you open a page, so when an administrator changes it, the next page you open follows the new role without signing in again.
+
+Password sign-in is off in Philter unless `PASSWORD_SIGN_IN_ENABLED` is `true`. While it is off, the sign-in page says so and its form is disabled.
 
 Users without a password, such as accounts used by automation, cannot sign in to Philter UI. They authenticate with long-lived [API keys]({$ philter_docs }/account/api_keys.html).
 
@@ -21,7 +23,7 @@ The first administrator's password is set with Philter's bootstrap API key. See 
 
 ## Password requirements
 
-A password must be at least 16 characters and at most 72 bytes in UTF-8. A new password must differ from the current one. Use either a random password (mixed letters, numbers, and symbols) or a passphrase of 5 to 7 unrelated words.
+Philter sets the password rules, and Philter UI reads them from Philter and shows them on each password form. By default a password must be at least 16 characters and at most 72 bytes in UTF-8. A new password must differ from the current one. Use either a random password (mixed letters, numbers, and symbols) or a passphrase of 5 to 7 unrelated words.
 
 ## Multi-factor authentication (MFA)
 

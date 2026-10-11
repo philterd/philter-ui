@@ -30,6 +30,7 @@ import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.SignInMessages;
 import ai.philterd.ui.security.Sessions;
+import ai.philterd.ui.model.PhilterRules;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -74,7 +75,6 @@ import java.util.stream.Collectors;
 public class AccountView extends VerticalLayout {
 
     /** The shortest webhook secret Philter accepts. */
-    static final int MINIMUM_WEBHOOK_SECRET_LENGTH = 16;
     static final int GENERATED_SECRET_LENGTH = 32;
 
     private static final String SECRET_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -130,7 +130,8 @@ public class AccountView extends VerticalLayout {
         final PasswordField current = new PasswordField("Current password");
         final PasswordField password = new PasswordField("New password");
         final PasswordField confirm = new PasswordField("Confirm new password");
-        password.setHelperText(Passwords.RULES);
+        final PhilterRules rules = ViewSupport.rules(client);
+        password.setHelperText(rules.passwordRules());
         for (final PasswordField field : List.of(current, password, confirm)) {
             field.setWidthFull();
         }
@@ -145,7 +146,7 @@ public class AccountView extends VerticalLayout {
             for (final PasswordField field : List.of(current, password, confirm)) {
                 field.setInvalid(false);
             }
-            final String problem = Passwords.problem(password.getValue());
+            final String problem = rules.passwordProblem(password.getValue());
             if (problem != null) {
                 invalid(password, problem);
                 return;
@@ -439,9 +440,11 @@ public class AccountView extends VerticalLayout {
         final PasswordField secret = new PasswordField("Secret");
         secret.setWidthFull();
         secret.setRevealButtonVisible(true);
-        secret.setHelperText("At least " + MINIMUM_WEBHOOK_SECRET_LENGTH + " characters, required on every save. "
+        final Integer minimumSecret = ViewSupport.rules(client).webhookSecretMinimumLength();
+        secret.setHelperText((minimumSecret == null ? "Required on every save. "
+                : "At least " + minimumSecret + " characters, required on every save. ")
                 + "Philter never shows it again, so copy it to the receiving service before you leave this page.");
-        final Button generate = new Button("Generate", e -> secret.setValue(generateSecret()));
+        final Button generate = new Button("Generate", e -> secret.setValue(generateSecret(minimumSecret)));
 
         final HorizontalLayout secretRow = new HorizontalLayout(secret, generate);
         secretRow.setWidthFull();
@@ -451,7 +454,7 @@ public class AccountView extends VerticalLayout {
         final Button save = new Button("Save Webhook", e -> {
             url.setInvalid(false);
             secret.setInvalid(false);
-            final String problem = webhookProblem(url.getValue(), secret.getValue());
+            final String problem = webhookProblem(url.getValue(), secret.getValue(), minimumSecret);
             if (problem != null) {
                 if (problem.startsWith("Enter a URL") || problem.startsWith("The URL")) {
                     invalid(url, problem);
@@ -507,7 +510,7 @@ public class AccountView extends VerticalLayout {
     }
 
     /** What is wrong with a webhook before it is sent, or {@code null}. Philter also checks its allowlist. */
-    static String webhookProblem(final String url, final String secret) {
+    static String webhookProblem(final String url, final String secret, final Integer minimumSecret) {
         if (url == null || url.isBlank()) {
             return "Enter a URL.";
         }
@@ -520,16 +523,23 @@ public class AccountView extends VerticalLayout {
         } catch (final URISyntaxException e) {
             return "The URL must be an http or https address.";
         }
-        if (secret == null || secret.length() < MINIMUM_WEBHOOK_SECRET_LENGTH) {
-            return "Enter a secret of at least " + MINIMUM_WEBHOOK_SECRET_LENGTH + " characters; Philter requires it on every save.";
+        if (secret == null || secret.isEmpty()) {
+            return "Enter a secret; Philter requires it on every save.";
+        }
+        if (minimumSecret != null && secret.length() < minimumSecret) {
+            return "Enter a secret of at least " + minimumSecret + " characters; Philter requires it on every save.";
         }
         return null;
     }
 
-    /** A random secret, without characters that are easy to confuse. */
-    static String generateSecret() {
-        final StringBuilder secret = new StringBuilder(GENERATED_SECRET_LENGTH);
-        for (int i = 0; i < GENERATED_SECRET_LENGTH; i++) {
+    /**
+     * A random secret, without characters that are easy to confuse: {@link #GENERATED_SECRET_LENGTH} characters, or
+     * Philter's minimum when that is longer.
+     */
+    static String generateSecret(final Integer minimum) {
+        final int length = minimum == null ? GENERATED_SECRET_LENGTH : Math.max(GENERATED_SECRET_LENGTH, minimum);
+        final StringBuilder secret = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
             secret.append(SECRET_CHARACTERS.charAt(RANDOM.nextInt(SECRET_CHARACTERS.length())));
         }
         return secret.toString();

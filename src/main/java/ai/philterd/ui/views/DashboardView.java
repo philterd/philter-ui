@@ -17,7 +17,6 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.ApiKey;
-import ai.philterd.philter.model.Limits;
 import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
@@ -66,8 +65,6 @@ public class DashboardView extends VerticalLayout {
     /** The largest PDF Philter accepts by default ({@code MAX_FILE_SIZE_BYTES}), used when its limits cannot be read. */
     static final long DEFAULT_PDF_BYTES = 10L * 1024 * 1024;
 
-    static final String DEFAULT_POLICY = "default";
-
     private static final byte[] PDF_SIGNATURE = "%PDF-".getBytes(StandardCharsets.US_ASCII);
 
     private final transient PhilterClient client;
@@ -85,7 +82,7 @@ public class DashboardView extends VerticalLayout {
         final PhilterUser user = Sessions.currentUser().orElseThrow();
         this.client = clients.forUser(user);
         this.documentClient = clients.forDocuments(user);
-        this.maxPdfBytes = pdfLimit(philterDocumentLimit(), configuredMaxPdfBytes);
+        this.maxPdfBytes = pdfLimit(ViewSupport.rules(client).maximumDocumentBytes(), configuredMaxPdfBytes);
 
         setSizeFull();
         add(new H2("Dashboard"));
@@ -104,8 +101,9 @@ public class DashboardView extends VerticalLayout {
         policy.setItems(policies);
         policy.setPlaceholder("Select a policy");
         policy.setWidth("400px");
-        if (policies.contains(DEFAULT_POLICY)) {
-            policy.setValue(DEFAULT_POLICY);
+        final String defaultPolicy = ViewSupport.rules(client).defaultPolicyName();
+        if (defaultPolicy != null && policies.contains(defaultPolicy)) {
+            policy.setValue(defaultPolicy);
         } else if (policies.size() == 1) {
             policy.setValue(policies.get(0));
         }
@@ -278,17 +276,6 @@ public class DashboardView extends VerticalLayout {
         final double megabytes = bytes / (1024.0 * 1024.0);
         return (megabytes == Math.rint(megabytes) ? String.valueOf((long) megabytes)
                 : String.format(java.util.Locale.ROOT, "%.1f", megabytes)) + " MB";
-    }
-
-    /** Philter's largest document, or {@code null} when its limits cannot be read. */
-    private Long philterDocumentLimit() {
-        try {
-            final Limits limits = client.getLimits();
-            return limits == null || limits.getRequests() == null ? null : limits.getRequests().getMaxDocumentBytes();
-        } catch (final ClientException | ServiceUnavailableException | IOException e) {
-            // The page still works, with the configured or default limit.
-            return null;
-        }
     }
 
     /** What stops the PDF being sent, or {@code null}. */

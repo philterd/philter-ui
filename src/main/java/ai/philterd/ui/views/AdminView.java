@@ -29,6 +29,7 @@ import ai.philterd.ui.security.PhilterUnreachableException;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.Sessions;
+import ai.philterd.ui.model.PhilterRules;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -76,12 +77,6 @@ import java.util.Set;
 @PageTitle("Admin | Philter UI")
 @RolesAllowed(Roles.ADMIN)
 public class AdminView extends VerticalLayout {
-
-    /** The most days after the first that one audit log export can cover, as Philter allows. */
-    static final int MAX_AUDIT_EXPORT_DAYS_AFTER = 30;
-
-    /** Events per audit log page; Philter's largest. */
-    static final int AUDIT_PAGE_SIZE = 1000;
 
     /** The most events one export holds, since Philter UI builds the file in memory. */
     static final int MAX_AUDIT_EXPORT_EVENTS = 100_000;
@@ -206,16 +201,17 @@ public class AdminView extends VerticalLayout {
         username.setRequired(true);
         final TextField email = new TextField("Email (optional)");
         email.setWidthFull();
-        final ComboBox<String> role = roleField("user");
+        final PhilterRules rules = ViewSupport.rules(client);
+        final ComboBox<String> role = roleField(rules.roles().contains("user") ? "user" : null, rules);
         final PasswordField password = new PasswordField("Temporary password (optional)");
-        password.setHelperText(Passwords.RULES + " Leave empty for a user who will use API keys only and never "
+        password.setHelperText(rules.passwordRules() + " Leave empty for a user who will use API keys only and never "
                 + "sign in.");
 
         final Dialog dialog = new Dialog();
         dialog.setWidth("600px");
         dialog.add(new H3("Add User"), new Paragraph("A user given a password must change it at first sign-in. "
                 + "Philter creates a default policy and context for the new user."),
-                new VerticalLayout(username, email, role, passwordRow(password, null)));
+                new VerticalLayout(username, email, role, passwordRow(password, null, rules)));
 
         final Button create = new Button("Add User", e -> {
             username.setInvalid(false);
@@ -225,8 +221,8 @@ public class AdminView extends VerticalLayout {
                 return;
             }
             final String chosen = password.getValue().isEmpty() ? null : password.getValue();
-            if (chosen != null && Passwords.problem(chosen) != null) {
-                invalid(password, Passwords.problem(chosen));
+            if (chosen != null && rules.passwordProblem(chosen) != null) {
+                invalid(password, rules.passwordProblem(chosen));
                 return;
             }
             try {
@@ -249,8 +245,9 @@ public class AdminView extends VerticalLayout {
 
     private void openResetPassword(final User row) {
 
+        final PhilterRules rules = ViewSupport.rules(client);
         final PasswordField password = new PasswordField("New password");
-        password.setHelperText(Passwords.RULES);
+        password.setHelperText(rules.passwordRules());
         final PasswordField confirm = new PasswordField("Confirm new password");
         confirm.setWidthFull();
 
@@ -258,12 +255,12 @@ public class AdminView extends VerticalLayout {
         dialog.setWidth("600px");
         dialog.add(new H3("Reset Password"), new Paragraph("Set a temporary password for " + row.getUsername()
                 + ". Their sessions end, and they must choose a new password at their next sign-in. Their API keys "
-                + "keep working."), new VerticalLayout(passwordRow(password, confirm), confirm));
+                + "keep working."), new VerticalLayout(passwordRow(password, confirm, rules), confirm));
 
         final Button save = new Button("Reset Password", e -> {
             password.setInvalid(false);
             confirm.setInvalid(false);
-            final String problem = Passwords.problem(password.getValue());
+            final String problem = rules.passwordProblem(password.getValue());
             if (problem != null) {
                 invalid(password, problem);
                 return;
@@ -291,7 +288,7 @@ public class AdminView extends VerticalLayout {
 
     private void openSetRole(final User row) {
 
-        final ComboBox<String> role = roleField(row.getRole());
+        final ComboBox<String> role = roleField(row.getRole(), ViewSupport.rules(client));
         final Dialog dialog = new Dialog();
         dialog.setWidth("450px");
         dialog.add(new H3("Set Role"), new Paragraph("Choose the role for " + row.getUsername() + "."), role);
@@ -498,7 +495,9 @@ public class AdminView extends VerticalLayout {
     private Component auditTab() {
 
         final LocalDate today = LocalDate.now();
-        final DatePicker from = new DatePicker("From", today.minusDays(MAX_AUDIT_EXPORT_DAYS_AFTER));
+        final PhilterRules rules = ViewSupport.rules(client);
+        final Integer window = rules.auditExportMaximumWindowDays();
+        final DatePicker from = new DatePicker("From", today.minusDays(window == null ? 6 : window));
         final DatePicker to = new DatePicker("To", today);
         final Anchor downloader = new Anchor();
         downloader.getElement().getStyle().set("display", "none");
@@ -508,7 +507,7 @@ public class AdminView extends VerticalLayout {
         export.setDisableOnClick(true);
         export.addClickListener(e -> {
             try {
-                final String problem = auditRangeProblem(from.getValue(), to.getValue());
+                final String problem = auditRangeProblem(from.getValue(), to.getValue(), window);
                 if (problem != null) {
                     Notifications.failure(problem);
                     return;
@@ -520,7 +519,7 @@ public class AdminView extends VerticalLayout {
                 Integer offset = 0;
                 while (offset != null) {
                     final AuditLogExport page = client.exportAuditLog(from.getValue(), to.getValue(), null, offset,
-                            AUDIT_PAGE_SIZE);
+                            rules.auditExportMaximumPageSize());
                     pages.add(page.getCsv());
                     fetched += page.getRows();
                     zone = page.getTimeZone();
@@ -551,8 +550,8 @@ public class AdminView extends VerticalLayout {
         final HorizontalLayout range = new HorizontalLayout(from, to, export);
         range.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.BASELINE);
 
-        final Paragraph about = new Paragraph("Export Philter's audit log as one CSV file for a range of whole days, up "
-                + "to " + (MAX_AUDIT_EXPORT_DAYS_AFTER + 1) + " days, most recent first. The days are read in Philter's "
+        final Paragraph about = new Paragraph("Export Philter's audit log as one CSV file for a range of whole days"
+                + (window == null ? "" : ", up to " + (window + 1) + " days") + ", most recent first. The days are read in Philter's "
                 + "time zone, and times in the file are UTC. An export holds at most " + MAX_AUDIT_EXPORT_EVENTS + " events. "
                 + "The export is itself recorded in the audit log. ");
         about.add(PhilterDocs.link("Learn more about the audit log.", "auditing.html"));
@@ -655,15 +654,15 @@ public class AdminView extends VerticalLayout {
     }
 
     /** What is wrong with an audit log date range, or {@code null}. */
-    static String auditRangeProblem(final LocalDate from, final LocalDate to) {
+    static String auditRangeProblem(final LocalDate from, final LocalDate to, final Integer maximumWindowDays) {
         if (from == null || to == null) {
             return "Choose both a From and a To date.";
         }
         if (from.isAfter(to)) {
             return "From must be on or before To.";
         }
-        if (ChronoUnit.DAYS.between(from, to) > MAX_AUDIT_EXPORT_DAYS_AFTER) {
-            return "An export can cover at most " + (MAX_AUDIT_EXPORT_DAYS_AFTER + 1) + " days.";
+        if (maximumWindowDays != null && ChronoUnit.DAYS.between(from, to) > maximumWindowDays) {
+            return "An export can cover at most " + (maximumWindowDays + 1) + " days.";
         }
         return null;
     }
@@ -757,9 +756,10 @@ public class AdminView extends VerticalLayout {
         return field;
     }
 
-    private static ComboBox<String> roleField(final String value) {
+    /** A role chooser offering the roles Philter reports, or only the current one when they cannot be read. */
+    private static ComboBox<String> roleField(final String value, final PhilterRules rules) {
         final ComboBox<String> role = new ComboBox<>("Role");
-        role.setItems("user", "admin");
+        role.setItems(roleChoices(value, rules));
         role.setValue(value);
         role.setAllowCustomValue(false);
         role.setRequired(true);
@@ -771,10 +771,11 @@ public class AdminView extends VerticalLayout {
      * A password field with a Generate button, which fills it, and the confirmation field if there is one, with
      * a random password and shows it to copy.
      */
-    private static HorizontalLayout passwordRow(final PasswordField password, final PasswordField confirm) {
+    private static HorizontalLayout passwordRow(final PasswordField password, final PasswordField confirm,
+                                                final PhilterRules rules) {
         password.setWidthFull();
         final Button generate = new Button("Generate", VaadinIcon.MAGIC.create(), e -> {
-            final String generated = Passwords.generate();
+            final String generated = Passwords.generate(rules);
             password.setValue(generated);
             password.setRevealButtonVisible(true);
             if (confirm != null) {
@@ -799,6 +800,15 @@ public class AdminView extends VerticalLayout {
     private static void invalid(final com.vaadin.flow.component.HasValidation field, final String message) {
         field.setErrorMessage(message);
         field.setInvalid(true);
+    }
+
+
+    /** The roles to offer: Philter's, or the current one alone when Philter's cannot be read. */
+    static List<String> roleChoices(final String current, final PhilterRules rules) {
+        if (!rules.roles().isEmpty()) {
+            return rules.roles();
+        }
+        return current == null ? List.of() : List.of(current);
     }
 
 }

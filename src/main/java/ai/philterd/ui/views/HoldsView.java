@@ -21,8 +21,8 @@ import ai.philterd.philter.model.LegalHoldResponse;
 import ai.philterd.philter.model.OwnedLegalHoldResponse;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
+import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.model.Pages;
-import ai.philterd.ui.model.PathSafeNames;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
@@ -46,6 +46,7 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * The person's legal holds, through Philter's legal holds API. Administrators also see every user's
@@ -92,7 +93,7 @@ public class HoldsView extends VerticalLayout {
 
         final TabSheet tabs = new TabSheet();
         tabs.add("My Legal Holds", mine);
-        if (ViewSupport.showAllUsers(user, client)) {
+        if (ViewSupport.showAllUsers(client)) {
             tabs.add("All Legal Holds", allHolds());
         }
         tabs.setSizeFull();
@@ -142,7 +143,7 @@ public class HoldsView extends VerticalLayout {
         reference.setRequired(true);
 
         final RadioButtonGroup<String> scope = new RadioButtonGroup<>("Protects");
-        scope.setItems(SCOPE_DOCUMENT_CHAIN, SCOPE_USER);
+        scope.setItems(scopeChoices(ViewSupport.rules(client)));
         scope.setItemLabelGenerator(HoldsView::scopeLabel);
         scope.setValue(SCOPE_DOCUMENT_CHAIN);
 
@@ -166,7 +167,7 @@ public class HoldsView extends VerticalLayout {
         final Button set = new Button("Set Hold", e -> {
             reference.setInvalid(false);
             documentId.setInvalid(false);
-            final String referenceProblem = referenceProblem(reference.getValue());
+            final String referenceProblem = referenceProblem(reference.getValue(), ViewSupport.rules(client));
             if (referenceProblem != null) {
                 invalid(reference, referenceProblem);
                 return;
@@ -254,14 +255,26 @@ public class HoldsView extends VerticalLayout {
     }
 
     /** What is wrong with a reference, or {@code null} if Philter will accept it. */
-    static String referenceProblem(final String reference) {
+    static String referenceProblem(final String reference, final PhilterRules rules) {
         if (reference == null || reference.isBlank()) {
             return "Enter a reference.";
         }
-        if (!PathSafeNames.isPathSafe(reference.trim())) {
-            return "The reference " + PathSafeNames.RULE + ".";
+        if (!rules.isPathSafe(reference.trim())) {
+            return "The reference " + rules.pathSafeRule() + ".";
         }
         return null;
+    }
+
+    /**
+     * The scope types to offer: those Philter reports that this page knows how to set, since each needs its own
+     * fields; both when Philter's cannot be read, and Philter refuses one it does not take.
+     */
+    static List<String> scopeChoices(final PhilterRules rules) {
+        final List<String> handled = List.of(SCOPE_DOCUMENT_CHAIN, SCOPE_USER);
+        if (rules.holdScopeTypes().isEmpty()) {
+            return handled;
+        }
+        return handled.stream().filter(rules.holdScopeTypes()::contains).toList();
     }
 
     static String scopeLabel(final String scopeType) {

@@ -23,6 +23,7 @@ import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.ContextCounts;
 import ai.philterd.ui.model.Pages;
+import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
@@ -59,6 +60,7 @@ public class ContextsView extends VerticalLayout {
 
     private final transient PhilterClient client;
     private final Grid<String> grid = new Grid<>();
+    private final Button create = new Button("New Context", VaadinIcon.RECORDS.create(), e -> openCreate());
 
     public ContextsView(final PhilterClients clients) {
 
@@ -90,18 +92,34 @@ public class ContextsView extends VerticalLayout {
 
         final TabSheet tabs = new TabSheet();
         tabs.add("My Contexts", mine);
-        if (ViewSupport.showAllUsers(user, client)) {
+        if (ViewSupport.showAllUsers(client)) {
             tabs.add("All Contexts", allContexts());
         }
         tabs.setSizeFull();
 
-        final Button create = new Button("New Context", VaadinIcon.RECORDS.create(), e -> openCreate());
         create.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        create.setTooltipText("Create a new redaction context.");
+        showCreate(ViewSupport.rules(client));
         tabs.setSuffixComponent(create);
 
         add(new H2("Contexts"), tabs);
 
+    }
+
+    /** Enables New Context unless the person already has as many contexts as Philter allows, and says why. */
+    private void showCreate(final PhilterRules rules) {
+        final String blocked = createBlocked(rules);
+        create.setEnabled(blocked == null);
+        create.setTooltipText(blocked == null ? "Create a new redaction context." : blocked);
+    }
+
+    /** Why a new context cannot be created, or {@code null} when it can or the limit is not known. */
+    static String createBlocked(final PhilterRules rules) {
+        if (!rules.isContextLimitReached()) {
+            return null;
+        }
+        final int limit = rules.contextLimit();
+        return "You have " + limit + (limit == 1 ? " context" : " contexts")
+                + ", the most Philter allows. Delete one to create another.";
     }
 
     private VerticalLayout allContexts() {
@@ -171,6 +189,7 @@ public class ContextsView extends VerticalLayout {
                         createScope(disambiguation.getValue(), scope.getValue()), ledger.getValue(), null);
                 dialog.close();
                 grid.getDataProvider().refreshAll();
+                showCreate(ViewSupport.rereadRules(client));
                 Notifications.success("Context created.");
             } catch (final ClientException ex) {
                 name.setErrorMessage(createFailure(ex));
@@ -242,6 +261,7 @@ public class ContextsView extends VerticalLayout {
                 "Delete", () -> {
                     client.deleteContext(name);
                     grid.getDataProvider().refreshAll();
+                    showCreate(ViewSupport.rereadRules(client));
                     Notifications.success("Context deleted.");
                 });
     }

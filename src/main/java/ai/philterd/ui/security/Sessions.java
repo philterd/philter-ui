@@ -68,6 +68,21 @@ public class Sessions {
                 VaadinServletResponse.getCurrent().getHttpServletResponse());
     }
 
+    /**
+     * Gives the signed-in person the administrator role Philter now gives them, keeping their session key, after
+     * an administrator changed their role. The page must be reloaded for the change to show.
+     */
+    public void changeAdministrator(final boolean administrator) {
+        currentUser().filter(user -> user.isAdministrator() != administrator).ifPresent(user -> {
+            final SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(SignIns.signedIn(user.withAdministrator(administrator)));
+            SecurityContextHolder.setContext(context);
+            new HttpSessionSecurityContextRepository().saveContext(context,
+                    VaadinServletRequest.getCurrent().getHttpServletRequest(),
+                    VaadinServletResponse.getCurrent().getHttpServletResponse());
+        });
+    }
+
     /** Revokes the session key, ends the session, and returns the person to the sign-in page. */
     public void end(final Notice notice) {
         currentUser().ifPresent(revoker::revoke);

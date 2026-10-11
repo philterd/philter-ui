@@ -22,11 +22,11 @@ If your bootstrap API key from `PHILTER_BOOTSTRAP_API_KEY` is still active, the 
 
 **Redaction Policies** manages the [policies]({$ philter_docs }/policies/filter_policies.html) that decide what Philter detects and how it redacts it. On the **My Policies** tab you can:
 
-* **Edit** a policy's JSON, description, and notes. Build a policy in the [policy editor](https://policies.philterd.ai/) and paste its JSON in, or edit the JSON directly. Philter validates the policy when it is saved and the page shows its reason if it refuses. Saving changed JSON creates a new revision; changing only the description or notes does not. A description can have up to 200 characters and notes up to 1000.
-* **Create** a policy with **New Policy**, starting from a template. Policy names can have up to 50 letters, digits, dashes, and underscores, cannot start with `managed_`, and are unique per user.
+* **Edit** a policy's JSON, description, and notes. Build a policy in the [policy editor](https://policies.philterd.ai/) and paste its JSON in, or edit the JSON directly. Philter validates the policy when it is saved and the page shows its reason if it refuses. Saving changed JSON creates a new revision; changing only the description or notes does not. The description and notes can be as long as Philter allows (by default 200 and 1000 characters).
+* **Create** a policy with **New Policy**, starting from a template. Policy names are unique per user and follow Philter's naming rule, shown under the name field: by default up to 50 letters, digits, dashes, and underscores, not starting with `managed_`.
 * **Duplicate** a policy under a new name.
 * **Delete** a policy. Philter keeps its version history, which Philter's API can still read; Philter UI shows history only for existing policies. The `default` policy cannot be deleted.
-* **See a policy's history**: view any of its 100 most recent revisions, compare two revisions with each change's value before and after, or roll back to an earlier revision. A rollback saves the earlier content as a new revision; no revision is removed.
+* **See a policy's history**: view its most recent revisions, as many as Philter returns in one page (100 by default), compare two revisions with each change's value before and after, or roll back to an earlier revision. A rollback saves the earlier content as a new revision; no revision is removed.
 
 Terms that are always or never redacted across all of your policies are on the [Always/Never Redact Lists](#alwaysnever-redact-lists) page.
 
@@ -41,7 +41,7 @@ Administrators also see an **All Policies** tab listing every user's policies an
 On the **My Custom Lists** tab you can:
 
 * **See** each list's name, description, and number of terms.
-* **Create** a list with **New Custom List**: a name, an optional description of up to 250 characters, and the items, one per line. Blank lines are ignored. A list needs at least one item and can have up to 100 items of up to 50 characters each. List names are unique per user and cannot contain `/`, `\`, `;`, `%`, or control characters, or be `.` or `..`.
+* **Create** a list with **New Custom List**: a name, an optional description of up to 250 characters, and the items, one per line. Blank lines are ignored. A list needs at least one item, and Philter limits how many items it can have and how long each can be (by default 100 items of up to 50 characters). List names are unique per user and follow Philter's rule for names used in requests: by default they cannot contain `/`, `\`, `;`, `%`, or control characters, or be `.` or `..`.
 * **Edit** a list's items and description. The description is kept unless you change it, and clearing the field removes it.
 * **Delete** a list.
 
@@ -53,7 +53,7 @@ Administrators also see an **All Custom Lists** tab listing every user's lists w
 
 **Always/Never Redact Lists** holds two lists of [terms]({$ philter_docs }/redaction/redact_lists.html) that apply to all of your redactions, whatever the policy: terms that are always redacted, and terms that are never redacted. Each has its own tab.
 
-* **Edit** a list as terms, one per line. Blank lines and surrounding spaces are ignored. Each list can have up to 1000 terms of up to 100 characters each.
+* **Edit** a list as terms, one per line. Blank lines and surrounding spaces are ignored. Philter limits how many terms each list can have and how long each can be (by default 1000 terms of up to 100 characters).
 * **Save** a list to replace it with what is shown. Saving an empty list clears it. Saving one list keeps the other as Philter has it, including changes made elsewhere, and updates the other tab to match unless you have unsaved edits there.
 
 Philter UI checks the term limits before saving. If Philter refuses a save, the page shows Philter's reason.
@@ -68,7 +68,7 @@ Philter UI checks the term limits before saving. If Philter refuses a save, the 
 On the **My Contexts** tab you can:
 
 * **View** a context: its settings, including its disambiguation scope, its number of entries, and the entries counted by filter type. Entries stored without a filter type, which only a [context import]({$ philter_docs }/api_and_sdks/api/contexts_api.html#import-a-mapping-table-into-a-context) creates, are counted on a row labeled **No filter type**. The counts sum to the number of entries.
-* **Create** a context with **New Context**, optionally with entity type disambiguation and its scope, and the [redaction ledger]({$ philter_docs }/redaction/ledgers.html) enabled. Context names are unique per user and cannot contain `/`, `\`, `;`, `%`, or control characters, or be `.` or `..`. Philter limits how many contexts each user can have, counting the `default` context; see [Capacity]({$ philter_docs }/api_and_sdks/api/contexts_api.html#capacity).
+* **Create** a context with **New Context**, optionally with entity type disambiguation and its scope, and the [redaction ledger]({$ philter_docs }/redaction/ledgers.html) enabled. Context names are unique per user and follow Philter's rule for names used in requests. Philter limits how many contexts each user can have, counting the `default` context; see [Capacity]({$ philter_docs }/api_and_sdks/api/contexts_api.html#capacity). Once you have that many, **New Context** is disabled and says why until you delete one.
 * **Edit** a context's settings. The dialog starts from the context's current settings, and only the settings you change are sent to Philter, so editing another setting leaves the scope as it is. Turning the ledger off stops recording redaction evidence for that context.
 * **Clear** a context, removing all of its entries but keeping the context.
 * **Delete** a context and its entries. Philter refuses while a document submitted for redaction with that context is still pending or processing.
@@ -95,7 +95,7 @@ Administrators also see an **All Ledgers** tab listing every user's chains and t
 On the **My Legal Holds** tab you can:
 
 * **See** your holds with their reference, scope, the document ID (or your username, for a hold on all of your evidence), reason, and when they were set (shown in UTC).
-* **Set a hold** with **Set Hold**: a reference, unique among your holds, and what it protects, either one document's ledger chain (enter the document ID; Philter does not check that the document exists, so a hold can be set before a document is redacted) or all of your evidence. A reason is optional. References cannot contain `/`, `\`, `;`, `%`, or control characters, or be `.` or `..`.
+* **Set a hold** with **Set Hold**: a reference, unique among your holds, and what it protects, either one document's ledger chain (enter the document ID; Philter does not check that the document exists, so a hold can be set before a document is redacted) or all of your evidence. A reason is optional. References follow Philter's rule for names used in requests: by default they cannot contain `/`, `\`, `;`, `%`, or control characters, or be `.` or `..`.
 * **Release** a hold. Evidence it covered may then become eligible for deletion or purge, if no other hold covers it.
 
 A hold set before Philter checked references may have one it no longer allows, such as one containing `/`. Such a hold can still be released.
@@ -111,24 +111,24 @@ Administrators also see an **All Legal Holds** tab listing every user's holds an
 * **Account** shows your username, email, and role. **Change Password** asks for your current password and the new one twice; see [password requirements](sign_in.md#password-requirements). Philter then ends all of your sign-in sessions, and you sign in again with the new password. Your API keys keep working.
 * **MFA** appears when an administrator has made multi-factor authentication available, or when you are enrolled. **Set Up MFA** shows a QR code and setup key for your authenticator app and asks for a code to confirm; you are then signed out, and sign in again with a code. **Remove MFA** asks for a code from your authenticator app; a wrong code counts toward locking your MFA. See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
 * **API Keys** lists your long-lived [API keys]({$ philter_docs }/account/api_keys.html) by prefix, with their scopes and when they were created; the bootstrap key is marked. **Edit scopes** can only remove [scopes]({$ philter_docs }/account/api_keys.html#scopes), since Philter does not let a sign-in session add them, and a key keeps at least one. **Revoke** stops a key working. Philter UI does not create keys; see [Creating API keys](#creating-api-keys). Below the keys, **Sign-in Sessions** lists each of your sessions, here or in another program that signs in through Philter, with when it started, was last used, and ends at the latest; it also ends sooner if it goes unused for Philter's idle timeout. You can sign out any session except the one you are using, which ends when you sign out of Philter UI.
-* **Webhook** sets the [webhook]({$ philter_docs }/api_and_sdks/api/webhooks.html) URL Philter calls when an asynchronous redaction completes or fails, and the secret it signs each call with. Philter requires the secret on every save, at least 16 characters, and never shows it again, so copy it to the receiving service when you set it; **Generate** makes a random one. Philter refuses a URL that is not `http` or `https`. When an administrator has set a webhook destination allowlist, the URL's host must be on it, and the address it resolves to must be public unless that address is in a listed IP address or range. Without an allowlist, any public address is accepted, and a private, loopback, or link-local one is refused. **Remove Webhook** stops the calls.
+* **Webhook** sets the [webhook]({$ philter_docs }/api_and_sdks/api/webhooks.html) URL Philter calls when an asynchronous redaction completes or fails, and the secret it signs each call with. Philter requires the secret on every save, at least as long as Philter's minimum (16 characters by default), and never shows it again, so copy it to the receiving service when you set it; **Generate** makes a random one. Philter refuses a URL that is not `http` or `https`. When an administrator has set a webhook destination allowlist, the URL's host must be on it, and the address it resolves to must be public unless that address is in a listed IP address or range. Without an allowlist, any public address is accepted, and a private, loopback, or link-local one is refused. **Remove Webhook** stops the calls.
 
 ## Administration
 
 The **Admin** page appears only for administrators. Philter also checks on every request that the caller is an administrator.
 
-Philter UI reads your role when you sign in. If Philter's settings cannot be read, for example because your role was changed since then, pages say so and hide the tabs listing every user's resources and ledger deletion, and the Admin page's **Settings** tab shows why. Sign in again to pick up a new role.
+Philter UI checks your role with Philter each time you open a page, so a role an administrator changes takes effect on the next page you open. The tabs listing every user's resources, and ledger deletion, appear when Philter says you may use them. If Philter's limits cannot be read, they stay hidden, and Philter UI leaves its other checks to Philter.
 
 ### Users
 
 **Users** lists every user, including deactivated ones, with their username, email, role, **Status** (Active or Deactivated), **Password** (Set, Must change, or None (API keys only)), and **MFA** (On, Off, or Locked). **Password** is **Must change** after an administrator sets or resets it, and **None (API keys only)** for a user who never signs in.
 
-* **Add User** takes a username, an optional email address, a role (`user` or `admin`), and an optional temporary password; **Generate** fills in a random one to copy. A user given a password must change it at first sign-in. Leave the password empty for a user who will use API keys only. Philter creates a default policy and context for the new user.
+* **Add User** takes a username, an optional email address, a role (one of those Philter offers, by default `user` or `admin`), and an optional temporary password; **Generate** fills in a random one to copy. A user given a password must change it at first sign-in. Leave the password empty for a user who will use API keys only. Philter creates a default policy and context for the new user.
 
 Each user's actions menu has:
 
 * **Reset password**: sets a temporary password. The user's sign-in sessions end and they must choose a new password at their next sign-in; their API keys keep working. See [password requirements](sign_in.md#password-requirements).
-* **Set role** to `user` or `admin`. Philter refuses to demote the last active administrator.
+* **Set role** to one of the roles Philter offers. Philter refuses to demote the last active administrator.
 * **Sign out everywhere**: ends every sign-in session the user has. Their API keys keep working.
 * **Unlock MFA** for a user locked out after too many wrong codes. Their enrollment is unchanged.
 * **Disable MFA** for a user who has lost their authenticator. They set MFA up again at their next sign-in if it is required, and otherwise sign in with their password alone until they do. See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
@@ -152,7 +152,7 @@ Cross-user access by administrators (`ADMIN_CROSS_USER_ACCESS_ENABLED`) and ledg
 
 ### Audit Log
 
-**Audit Log** exports Philter's [audit log]({$ philter_docs }/auditing.html) as one CSV file for a range of whole days, up to 31 days, most recent first. The days are read in Philter's time zone, and times in the file are in UTC. An export holds at most 100,000 events; when a range has more, Philter UI says so, and a shorter range gets the rest. The export is itself recorded in the audit log, once for each page of up to 1,000 events that Philter UI reads. Philter does not record redacted values, passwords, or secrets in audit events, but events do include usernames, client addresses, document IDs, and text that callers supply, such as legal hold references.
+**Audit Log** exports Philter's [audit log]({$ philter_docs }/auditing.html) as one CSV file for a range of whole days, up to the longest range Philter allows (31 days by default), most recent first. The days are read in Philter's time zone, and times in the file are in UTC. An export holds at most 100,000 events; when a range has more, Philter UI says so, and a shorter range gets the rest. The export is itself recorded in the audit log, once for each page of events that Philter UI reads (up to 1,000 by default). Philter does not record redacted values, passwords, or secrets in audit events, but events do include usernames, client addresses, document IDs, and text that callers supply, such as legal hold references.
 
 ## Creating API keys
 

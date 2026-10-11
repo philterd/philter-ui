@@ -23,7 +23,7 @@ import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.Pages;
 import ai.philterd.ui.model.PolicyJson;
-import ai.philterd.ui.model.PolicyNames;
+import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
@@ -61,15 +61,12 @@ import java.nio.charset.StandardCharsets;
 public class PoliciesView extends VerticalLayout {
 
     /** Philter's limits on a policy's description and notes. */
-    static final int MAXIMUM_DESCRIPTION_LENGTH = 200;
-    static final int MAXIMUM_NOTES_LENGTH = 1000;
 
     static final String POLICY_EDITOR = "https://policies.philterd.ai/";
 
     /** The policy every user has, which Philter does not let anyone delete. */
-    static final String DEFAULT_POLICY = "default";
-
     private final transient PhilterClient client;
+    private final PhilterRules rules;
     private final Grid<String> grid = new Grid<>();
     private final String policyEditorUrl;
 
@@ -77,6 +74,7 @@ public class PoliciesView extends VerticalLayout {
 
         final PhilterUser user = Sessions.currentUser().orElseThrow();
         this.client = clients.forUser(user);
+        this.rules = ViewSupport.rules(client);
         this.policyEditorUrl = policyEditorUrl(schemaVersion());
 
         setSizeFull();
@@ -105,7 +103,7 @@ public class PoliciesView extends VerticalLayout {
         final TabSheet tabs = new TabSheet();
         tabs.add("My Policies", mine);
         tabs.add("Managed Policies", managedPolicies());
-        if (ViewSupport.showAllUsers(user, client)) {
+        if (ViewSupport.showAllUsers(client)) {
             tabs.add("All Policies", allPolicies());
         }
         tabs.setSizeFull();
@@ -127,7 +125,7 @@ public class PoliciesView extends VerticalLayout {
         final Button delete = ViewSupport.button("Delete", VaadinIcon.TRASH, "Delete policy " + name,
                 () -> openDelete(name));
         delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
-        if (DEFAULT_POLICY.equals(name)) {
+        if (rules.isDefaultPolicy(name)) {
             delete.setEnabled(false);
             delete.setTooltipText("The default policy cannot be deleted.");
         }
@@ -220,7 +218,7 @@ public class PoliciesView extends VerticalLayout {
         }
 
         final PolicyForm form = new PolicyForm(name, true, PolicyJson.pretty(json),
-                details.getDescription(), details.getNotes(), policyEditorUrl);
+                details.getDescription(), details.getNotes(), policyEditorUrl, rules);
         final Dialog dialog = form.dialog("Edit Policy");
         // What Philter has now, so a second Save after the details failed does not replace it again.
         final String[] saved = {json};
@@ -259,13 +257,13 @@ public class PoliciesView extends VerticalLayout {
 
     private void openCreate() {
 
-        final PolicyForm form = new PolicyForm("", false, PolicyJson.template(), "", "", policyEditorUrl);
+        final PolicyForm form = new PolicyForm("", false, PolicyJson.template(), "", "", policyEditorUrl, rules);
         final Dialog dialog = form.dialog("New Policy");
 
         final Button save = new Button("Save", e -> {
             form.clearErrors();
             final String name = form.name.getValue().trim();
-            final String nameProblem = PolicyNames.problem(name);
+            final String nameProblem = rules.policyNameProblem(name);
             if (nameProblem != null) {
                 form.nameError(nameProblem);
                 return;
@@ -330,8 +328,10 @@ public class PoliciesView extends VerticalLayout {
         final TextField name = new TextField("New policy name");
         name.setWidthFull();
         name.setRequired(true);
-        name.setMaxLength(PolicyNames.MAXIMUM_LENGTH);
-        name.setHelperText(PolicyNames.RULE);
+        if (rules.policyNameMaximumLength() != null) {
+            name.setMaxLength(rules.policyNameMaximumLength());
+        }
+        name.setHelperText(rules.policyNameRule());
 
         final Dialog dialog = new Dialog();
         dialog.setWidth("450px");
@@ -339,7 +339,7 @@ public class PoliciesView extends VerticalLayout {
 
         final Button copy = new Button(title.startsWith("Duplicate") ? "Duplicate" : "Create Policy", e -> {
             name.setInvalid(false);
-            final String problem = PolicyNames.problem(name.getValue().trim());
+            final String problem = rules.policyNameProblem(name.getValue().trim());
             if (problem != null) {
                 invalid(name, problem);
                 return;
@@ -439,22 +439,28 @@ public class PoliciesView extends VerticalLayout {
         private final TabSheet tabs = new TabSheet();
 
         PolicyForm(final String policyName, final boolean existing, final String policyJson, final String policyDescription,
-                   final String policyNotes, final String policyEditorUrl) {
+                   final String policyNotes, final String policyEditorUrl, final PhilterRules rules) {
             name.setWidthFull();
             name.setValue(policyName);
             name.setReadOnly(existing);
             name.setRequired(!existing);
-            name.setMaxLength(PolicyNames.MAXIMUM_LENGTH);
+            if (rules.policyNameMaximumLength() != null) {
+                name.setMaxLength(rules.policyNameMaximumLength());
+            }
             if (!existing) {
-                name.setHelperText(PolicyNames.RULE);
+                name.setHelperText(rules.policyNameRule());
             }
             description.setWidthFull();
-            description.setMaxLength(MAXIMUM_DESCRIPTION_LENGTH);
+            if (rules.policyDescriptionMaximumLength() != null) {
+                description.setMaxLength(rules.policyDescriptionMaximumLength());
+            }
             description.setPlaceholder("Optional description of the policy");
             description.setValue(policyDescription == null ? "" : policyDescription);
             notes.setWidthFull();
             notes.setHeight("150px");
-            notes.setMaxLength(MAXIMUM_NOTES_LENGTH);
+            if (rules.policyNotesMaximumLength() != null) {
+                notes.setMaxLength(rules.policyNotesMaximumLength());
+            }
             notes.setPlaceholder("Optional notes about the policy");
             notes.setValue(policyNotes == null ? "" : policyNotes);
             json.setWidthFull();

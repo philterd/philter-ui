@@ -72,6 +72,11 @@ public final class PhilterUser implements Serializable {
         return sessionKeyId;
     }
 
+    /** The same signed-in person and session key, with the administrator role Philter now gives them. */
+    PhilterUser withAdministrator(final boolean administrator) {
+        return new PhilterUser(username, administrator, restriction, sessionKey, sessionKeyId);
+    }
+
     String sessionKey() {
         return sessionKey;
     }

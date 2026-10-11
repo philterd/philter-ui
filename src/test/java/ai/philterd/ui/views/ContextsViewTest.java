@@ -17,7 +17,10 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.ContextDetails;
 import ai.philterd.philter.model.DisambiguationScope;
+import ai.philterd.philter.model.Limits;
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.ui.TestRules;
+import ai.philterd.ui.model.PhilterRules;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -106,6 +109,20 @@ class ContextsViewTest {
                 ContextsView.settingsSummary(details(true, DisambiguationScope.DOCUMENT, false)));
         assertEquals("Entity type disambiguation is off. The redaction ledger is off.",
                 ContextsView.settingsSummary(details(false, DisambiguationScope.CONTEXT, false)));
+    }
+
+    @Test
+    void newContextsStopAtPhiltersLimit() {
+        assertNull(ContextsView.createBlocked(TestRules.defaults()));
+        assertNull(ContextsView.createBlocked(PhilterRules.unknown()));
+        final Limits limits = TestRules.limits();
+        limits.getCaller().setContextCount(10);
+        assertEquals("You have 10 contexts, the most Philter allows. Delete one to create another.",
+                ContextsView.createBlocked(PhilterRules.of(limits)));
+        limits.getContexts().setMaxPerUser(1);
+        limits.getCaller().setContextCount(1);
+        assertEquals("You have 1 context, the most Philter allows. Delete one to create another.",
+                ContextsView.createBlocked(PhilterRules.of(limits)));
     }
 
 }

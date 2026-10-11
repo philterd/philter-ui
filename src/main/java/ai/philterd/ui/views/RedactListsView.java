@@ -20,6 +20,7 @@ import ai.philterd.philter.model.RedactLists;
 import ai.philterd.philter.model.RedactListsRequest;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
+import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.model.Lines;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.Roles;
@@ -50,8 +51,6 @@ import java.util.Map;
 public class RedactListsView extends VerticalLayout {
 
     /** Philter's limits on each list, checked here too so a mistake shows before the request. */
-    static final int MAXIMUM_TERMS = 1000;
-    static final int MAXIMUM_TERM_LENGTH = 100;
 
     /** The two lists, and how each is named on the page and in messages. */
     enum Kind {
@@ -106,8 +105,7 @@ public class RedactListsView extends VerticalLayout {
         text.setSizeFull();
         texts.put(kind, text);
         show(kind, terms);
-        text.setHelperText("Up to " + MAXIMUM_TERMS + " terms of up to " + MAXIMUM_TERM_LENGTH + " characters each. "
-                + "Saving an empty list clears it.");
+        text.setHelperText(termsHelp(ViewSupport.rules(client)));
 
         final Button save = new Button("Save " + kind.title, e -> save(kind, text));
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -121,7 +119,7 @@ public class RedactListsView extends VerticalLayout {
     private void save(final Kind kind, final TextArea text) {
 
         final List<String> terms = Lines.terms(text.getValue());
-        final String problem = termsProblem(kind, terms);
+        final String problem = termsProblem(kind, terms, ViewSupport.rules(client));
         if (problem != null) {
             Notifications.failure(problem);
             return;
@@ -155,17 +153,28 @@ public class RedactListsView extends VerticalLayout {
     }
 
     /** What is wrong with the terms under Philter's limits, or {@code null} if nothing is. */
-    static String termsProblem(final Kind kind, final List<String> terms) {
-        if (terms.size() > MAXIMUM_TERMS) {
-            return "The " + kind.label + " list can have at most " + MAXIMUM_TERMS + " terms; this one has "
+    static String termsProblem(final Kind kind, final List<String> terms, final PhilterRules rules) {
+        final Integer maximumTerms = rules.redactListMaximumTerms();
+        if (maximumTerms != null && terms.size() > maximumTerms) {
+            return "The " + kind.label + " list can have at most " + maximumTerms + " terms; this one has "
                     + terms.size() + ".";
         }
+        final Integer maximumLength = rules.redactListTermMaximumLength();
         for (final String term : terms) {
-            if (term.length() > MAXIMUM_TERM_LENGTH) {
-                return "Each term can be at most " + MAXIMUM_TERM_LENGTH + " characters: \"" + term + "\" is longer.";
+            if (maximumLength != null && term.length() > maximumLength) {
+                return "Each term can be at most " + maximumLength + " characters: \"" + term + "\" is longer.";
             }
         }
         return null;
+    }
+
+    /** The terms field's helper text, stating Philter's limits when they are known. */
+    static String termsHelp(final PhilterRules rules) {
+        final String limits = rules.redactListMaximumTerms() == null || rules.redactListTermMaximumLength() == null
+                ? "One term per line. "
+                : "Up to " + rules.redactListMaximumTerms() + " terms of up to " + rules.redactListTermMaximumLength()
+                        + " characters each. ";
+        return limits + "Saving an empty list clears it.";
     }
 
     private void show(final Kind kind, final List<String> terms) {

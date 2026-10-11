@@ -15,7 +15,11 @@
  */
 package ai.philterd.ui.views;
 
+import ai.philterd.philter.model.SignInOptions;
+import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.security.Notice;
+import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.SignInFailedException;
 import ai.philterd.ui.security.SignInMessages;
 import com.vaadin.flow.component.html.H1;
@@ -33,11 +37,14 @@ import com.vaadin.flow.server.auth.AnonymousAllowed;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.security.web.WebAttributes;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The sign-in page. The form posts to Spring Security's {@code /login}, which sends the username and
- * password to Philter; Philter UI does not store either.
+ * password to Philter; Philter UI does not store either. When Philter has password sign-in turned off, the form is
+ * disabled and the page says so.
  */
 @Route("login")
 @PageTitle("Sign In | Philter UI")
@@ -46,8 +53,11 @@ public class SignInView extends VerticalLayout implements BeforeEnterObserver {
 
     private final LoginForm form = new LoginForm();
     private final Paragraph notice = new Paragraph();
+    private final Paragraph unavailable = new Paragraph();
+    private final transient PhilterClients clients;
 
-    public SignInView() {
+    public SignInView(final PhilterClients clients) {
+        this.clients = clients;
         addClassName("login-view");
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -56,8 +66,9 @@ public class SignInView extends VerticalLayout implements BeforeEnterObserver {
         form.setAction("login");
         form.setForgotPasswordButtonVisible(false);
         notice.setVisible(false);
+        unavailable.setVisible(false);
 
-        add(new H1("Philter UI"), notice, form);
+        add(new H1("Philter UI"), notice, unavailable, form);
     }
 
     @Override
@@ -73,6 +84,11 @@ public class SignInView extends VerticalLayout implements BeforeEnterObserver {
             form.setError(true);
         }
 
+        final String off = passwordSignInOff(signInOptions());
+        unavailable.setText(off == null ? "" : off);
+        unavailable.setVisible(off != null);
+        form.setEnabled(off == null);
+
         parameters.getParameters().getOrDefault("notice", List.of()).stream().findFirst()
                 .flatMap(Notice::fromParameter)
                 .ifPresent(n -> {
@@ -80,6 +96,28 @@ public class SignInView extends VerticalLayout implements BeforeEnterObserver {
                     notice.setVisible(true);
                 });
 
+    }
+
+    /** Philter's sign-in options, or {@code null} when Philter could not be asked, so the form stays usable. */
+    private Optional<SignInOptions> signInOptions() {
+        try {
+            return clients.anonymous().getSignInOptions();
+        } catch (final ClientException | ServiceUnavailableException | IOException e) {
+            return null;
+        }
+    }
+
+    /** Shown when Philter has password sign-in turned off. */
+    static final String PASSWORD_SIGN_IN_OFF = "Password sign-in is not enabled on this Philter, so Philter UI cannot "
+            + "sign you in. Ask whoever runs Philter to set PASSWORD_SIGN_IN_ENABLED=true.";
+
+    /**
+     * Why the form cannot be used, or {@code null} when it can: {@code options} is empty when Philter has password
+     * sign-in turned off, and {@code null} when Philter could not be asked, in which case signing in reports
+     * any problem.
+     */
+    static String passwordSignInOff(final Optional<SignInOptions> options) {
+        return options != null && options.isEmpty() ? PASSWORD_SIGN_IN_OFF : null;
     }
 
     /** The message for the failure Spring Security saved in the session, read once. */

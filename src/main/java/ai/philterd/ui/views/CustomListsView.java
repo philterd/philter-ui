@@ -20,9 +20,9 @@ import ai.philterd.philter.model.CustomListSummary;
 import ai.philterd.philter.model.GetListsResponse;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
+import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.model.Lines;
 import ai.philterd.ui.model.Pages;
-import ai.philterd.ui.model.PathSafeNames;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
@@ -58,8 +58,6 @@ import java.util.List;
 public class CustomListsView extends VerticalLayout {
 
     /** Philter's limits on a list's items, checked here too so a mistake shows before the request. */
-    static final int MAXIMUM_ITEMS = 100;
-    static final int MAXIMUM_ITEM_LENGTH = 50;
 
     /** Kept short because Philter takes the description in the query string. */
     static final int MAXIMUM_DESCRIPTION_LENGTH = 250;
@@ -94,7 +92,7 @@ public class CustomListsView extends VerticalLayout {
 
         final TabSheet tabs = new TabSheet();
         tabs.add("My Custom Lists", mine);
-        if (ViewSupport.showAllUsers(user, client)) {
+        if (ViewSupport.showAllUsers(client)) {
             tabs.add("All Custom Lists", allLists());
         }
         tabs.setSizeFull();
@@ -117,9 +115,10 @@ public class CustomListsView extends VerticalLayout {
         final Button edit = ViewSupport.button(null, VaadinIcon.EDIT, "Edit custom list " + list.getName(),
                 () -> openEdit(list.getName()));
         // A list named before Philter checked names cannot be opened or changed, only deleted.
-        if (!PathSafeNames.isPathSafe(list.getName())) {
+        final PhilterRules rules = ViewSupport.rules(client);
+        if (!rules.isPathSafe(list.getName())) {
             edit.setEnabled(false);
-            edit.setTooltipText("This list's name " + PathSafeNames.RULE + ", so it can only be deleted.");
+            edit.setTooltipText("This list's name " + rules.pathSafeRule() + ", so it can only be deleted.");
         }
         return edit;
     }
@@ -160,12 +159,13 @@ public class CustomListsView extends VerticalLayout {
                 invalid(name, "Enter a name.");
                 return;
             }
-            if (!PathSafeNames.isPathSafe(name.getValue())) {
-                invalid(name, "The list name " + PathSafeNames.RULE + ".");
+            final PhilterRules rules = ViewSupport.rules(client);
+            if (!rules.isPathSafe(name.getValue())) {
+                invalid(name, "The list name " + rules.pathSafeRule() + ".");
                 return;
             }
             final List<String> values = Lines.terms(items.getValue());
-            final String problem = itemsProblem(values);
+            final String problem = itemsProblem(values, rules);
             if (problem != null) {
                 showError(error, problem);
                 return;
@@ -219,7 +219,7 @@ public class CustomListsView extends VerticalLayout {
         final Button save = new Button("Save", e -> {
             error.setVisible(false);
             final List<String> values = Lines.terms(items.getValue());
-            final String problem = itemsProblem(values);
+            final String problem = itemsProblem(values, ViewSupport.rules(client));
             if (problem != null) {
                 showError(error, problem);
                 return;
@@ -272,19 +272,30 @@ public class CustomListsView extends VerticalLayout {
     }
 
     /** What is wrong with the items under Philter's limits, or {@code null} if nothing is. */
-    static String itemsProblem(final List<String> items) {
+    static String itemsProblem(final List<String> items, final PhilterRules rules) {
         if (items.isEmpty()) {
             return "Enter at least one item.";
         }
-        if (items.size() > MAXIMUM_ITEMS) {
-            return "A list can have at most " + MAXIMUM_ITEMS + " items; this one has " + items.size() + ".";
+        final Integer maximumItems = rules.customListMaximumItems();
+        if (maximumItems != null && items.size() > maximumItems) {
+            return "A list can have at most " + maximumItems + " items; this one has " + items.size() + ".";
         }
+        final Integer maximumLength = rules.customListItemMaximumLength();
         for (final String item : items) {
-            if (item.length() > MAXIMUM_ITEM_LENGTH) {
-                return "Each item can be at most " + MAXIMUM_ITEM_LENGTH + " characters: \"" + item + "\" is longer.";
+            if (maximumLength != null && item.length() > maximumLength) {
+                return "Each item can be at most " + maximumLength + " characters: \"" + item + "\" is longer.";
             }
         }
         return null;
+    }
+
+    /** The items field's helper text, stating Philter's limits when they are known. */
+    static String itemsHelp(final PhilterRules rules) {
+        if (rules.customListMaximumItems() == null || rules.customListItemMaximumLength() == null) {
+            return "One item per line.";
+        }
+        return "Up to " + rules.customListMaximumItems() + " items of up to " + rules.customListItemMaximumLength()
+                + " characters each.";
     }
 
     private static String blankToNull(final String value) {
@@ -304,13 +315,13 @@ public class CustomListsView extends VerticalLayout {
         return description;
     }
 
-    private static TextArea itemsField() {
+    private TextArea itemsField() {
         final TextArea items = new TextArea("Items, one per line");
         items.setWidthFull();
         items.setRequired(true);
         items.setMinRows(10);
         items.setMaxRows(20);
-        items.setHelperText("Up to " + MAXIMUM_ITEMS + " items of up to " + MAXIMUM_ITEM_LENGTH + " characters each.");
+        items.setHelperText(itemsHelp(ViewSupport.rules(client)));
         return items;
     }
 

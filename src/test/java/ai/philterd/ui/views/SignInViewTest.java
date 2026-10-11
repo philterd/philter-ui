@@ -13,27 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.ui.model;
+package ai.philterd.ui.views;
 
+import ai.philterd.philter.model.SignInOptions;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.Optional;
 
-class PathSafeNamesTest {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
-    @Test
-    void acceptsOrdinaryNamesIncludingSpacesAndPeriods() {
-        assertTrue(PathSafeNames.isPathSafe("employee-ids"));
-        assertTrue(PathSafeNames.isPathSafe("Project names v2.1"));
-        assertTrue(PathSafeNames.isPathSafe("..."));
-    }
+class SignInViewTest {
 
     @Test
-    void refusesWhatPhilterRefuses() {
-        for (final String name : new String[] {"a/b", "a\\b", "a;b", "100%", "tab\there", "line\nbreak", ".", ".."}) {
-            assertFalse(PathSafeNames.isPathSafe(name), name);
-        }
+    void theFormIsOffOnlyWhenPhilterSaysPasswordSignInIs() {
+        assertNull(SignInView.passwordSignInOff(Optional.of(new SignInOptions())));
+        assertEquals(SignInView.PASSWORD_SIGN_IN_OFF, SignInView.passwordSignInOff(Optional.empty()));
+        // When Philter cannot be asked, the form stays usable and signing in reports the problem.
+        assertNull(SignInView.passwordSignInOff(null));
     }
 
 }

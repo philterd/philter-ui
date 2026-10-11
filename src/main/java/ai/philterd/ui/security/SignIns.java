@@ -84,12 +84,19 @@ public class SignIns {
             throw e;
         }
 
-        final boolean administrator = "admin".equals(user.getRole());
-        final PhilterUser principal = new PhilterUser(user.getUsername(), administrator,
-                PhilterUser.Restriction.NONE, response.getApiKey(), response.getId());
+        return signedIn(new PhilterUser(user.getUsername(), isAdministrator(user.getRole()),
+                PhilterUser.Restriction.NONE, response.getApiKey(), response.getId()));
 
-        return administrator ? token(principal, Roles.USER, Roles.ADMIN) : token(principal, Roles.USER);
+    }
 
+    /** Whether a Philter role gives administrator access. */
+    public static boolean isAdministrator(final String role) {
+        return "admin".equals(role);
+    }
+
+    /** The authentication for a fully signed-in person, with the administrator role when they have it. */
+    static Authentication signedIn(final PhilterUser user) {
+        return user.isAdministrator() ? token(user, Roles.USER, Roles.ADMIN) : token(user, Roles.USER);
     }
 
     private static Authentication token(final Object principal, final String... roles) {

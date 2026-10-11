@@ -15,10 +15,14 @@
  */
 package ai.philterd.ui.views;
 
+import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.security.Notice;
+import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.Sessions;
+import ai.philterd.ui.security.SignIns;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
@@ -30,16 +34,26 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import jakarta.annotation.security.RolesAllowed;
 
 /**
  * The frame around every view a signed-in person uses: navigation, who they are, and a way to sign out.
- * Vaadin checks a layout's access rules as well as its views', so it allows only fully signed-in people.
+ * Vaadin checks a layout's access rules as well as its views', so it allows only fully signed-in people. On each
+ * navigation it checks the person's role with Philter, so a role an administrator changed takes effect without
+ * signing in again.
  */
 @RolesAllowed(Roles.USER)
-public class MainLayout extends AppLayout {
+public class MainLayout extends AppLayout implements BeforeEnterObserver {
 
-    public MainLayout(final Sessions sessions) {
+    private final transient Sessions sessions;
+    private final transient PhilterClients clients;
+
+    public MainLayout(final Sessions sessions, final PhilterClients clients) {
+
+        this.sessions = sessions;
+        this.clients = clients;
 
         final H1 title = new H1("Philter UI");
         title.getStyle().set("font-size", "var(--lumo-font-size-l)").set("margin", "0");
@@ -81,6 +95,36 @@ public class MainLayout extends AppLayout {
             addToDrawer(administration);
         }
 
+    }
+
+    @Override
+    public void beforeEnter(final BeforeEnterEvent event) {
+        Sessions.currentUser().ifPresent(user -> {
+            final Boolean administrator = administratorChange(user, ViewSupport.rules(clients.forUser(user)));
+            if (administrator == null) {
+                return;
+            }
+            sessions.changeAdministrator(administrator);
+            // Reload so the navigation and every view's access check use the new role. A person who is no
+            // longer an administrator goes to the dashboard, since the page they were opening may be closed to them.
+            if (administrator) {
+                UI.getCurrent().getPage().reload();
+            } else {
+                UI.getCurrent().getPage().setLocation(".");
+            }
+        });
+    }
+
+    /**
+     * Whether the person should now be an administrator, when Philter's role for them differs from the one they
+     * signed in with, or {@code null} when it is the same or Philter could not say.
+     */
+    static Boolean administratorChange(final PhilterUser user, final PhilterRules rules) {
+        final String role = rules.callerRole();
+        if (role == null || SignIns.isAdministrator(role) == user.isAdministrator()) {
+            return null;
+        }
+        return SignIns.isAdministrator(role);
     }
 
 }

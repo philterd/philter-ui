@@ -16,6 +16,7 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.LegalHoldRequest;
+import ai.philterd.ui.TestRules;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,10 +45,10 @@ class HoldsViewTest {
 
     @Test
     void referencesArePathSafeAndNotBlank() {
-        assertNull(HoldsView.referenceProblem("LIT-2026-001"));
-        assertNull(HoldsView.referenceProblem("Case 7 v2.1"));
-        assertEquals("Enter a reference.", HoldsView.referenceProblem("  "));
-        assertTrue(HoldsView.referenceProblem("LIT/2026/001").startsWith("The reference cannot contain /"));
+        assertNull(HoldsView.referenceProblem("LIT-2026-001", TestRules.defaults()));
+        assertNull(HoldsView.referenceProblem("Case 7 v2.1", TestRules.defaults()));
+        assertEquals("Enter a reference.", HoldsView.referenceProblem("  ", TestRules.defaults()));
+        assertTrue(HoldsView.referenceProblem("LIT/2026/001", TestRules.defaults()).startsWith("The reference cannot contain /"));
     }
 
     @Test

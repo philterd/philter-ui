@@ -41,28 +41,40 @@ class AccountViewTest {
 
     @Test
     void webhooksNeedAnHttpUrlAndALongEnoughSecret() {
-        final String secret = "x".repeat(AccountView.MINIMUM_WEBHOOK_SECRET_LENGTH);
-        assertNull(AccountView.webhookProblem("https://hooks.example.com/philter", secret));
-        assertNull(AccountView.webhookProblem("http://10.0.0.5:8080/hook", secret));
-        assertEquals("Enter a URL.", AccountView.webhookProblem(" ", secret));
-        assertEquals("The URL must be an http or https address.", AccountView.webhookProblem("ftp://example.com/x", secret));
-        assertEquals("The URL must be an http or https address.", AccountView.webhookProblem("not a url", secret));
-        assertTrue(AccountView.webhookProblem("https://hooks.example.com/philter", "short").startsWith("Enter a secret of at least 16"));
-        assertTrue(AccountView.webhookProblem("https://hooks.example.com/philter", null).startsWith("Enter a secret"));
+        final String secret = "x".repeat(16);
+        assertNull(AccountView.webhookProblem("https://hooks.example.com/philter", secret, 16));
+        assertNull(AccountView.webhookProblem("http://10.0.0.5:8080/hook", secret, 16));
+        assertEquals("Enter a URL.", AccountView.webhookProblem(" ", secret, 16));
+        assertEquals("The URL must be an http or https address.", AccountView.webhookProblem("ftp://example.com/x", secret, 16));
+        assertEquals("The URL must be an http or https address.", AccountView.webhookProblem("not a url", secret, 16));
+        assertTrue(AccountView.webhookProblem("https://hooks.example.com/philter", "short", 16).startsWith("Enter a secret of at least 16"));
+        assertTrue(AccountView.webhookProblem("https://hooks.example.com/philter", null, 16).startsWith("Enter a secret"));
+    }
+
+    @Test
+    void anUnknownMinimumLeavesTheSecretLengthToPhilter() {
+        assertNull(AccountView.webhookProblem("https://hooks.example.com/philter", "short", null));
+        assertTrue(AccountView.webhookProblem("https://hooks.example.com/philter", "", null).startsWith("Enter a secret"));
     }
 
     @Test
     void generatedSecretsAreLongEnoughAndDifferent() {
         final Set<String> secrets = new HashSet<>();
         for (int i = 0; i < 20; i++) {
-            final String secret = AccountView.generateSecret();
+            final String secret = AccountView.generateSecret(16);
             assertEquals(AccountView.GENERATED_SECRET_LENGTH, secret.length());
             assertTrue(secret.matches("[A-Za-z0-9]+"), secret);
-            assertNull(AccountView.webhookProblem("https://hooks.example.com/philter", secret));
+            assertNull(AccountView.webhookProblem("https://hooks.example.com/philter", secret, 16));
             secrets.add(secret);
         }
         assertEquals(20, secrets.size());
-        assertNotEquals(AccountView.generateSecret(), AccountView.generateSecret());
+        assertNotEquals(AccountView.generateSecret(16), AccountView.generateSecret(16));
+    }
+
+    @Test
+    void generatedSecretsMeetALargerMinimum() {
+        assertEquals(64, AccountView.generateSecret(64).length());
+        assertEquals(AccountView.GENERATED_SECRET_LENGTH, AccountView.generateSecret(null).length());
     }
 
     @Test

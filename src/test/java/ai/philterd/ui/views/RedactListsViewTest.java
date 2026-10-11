@@ -17,6 +17,7 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.RedactLists;
 import ai.philterd.philter.model.RedactListsRequest;
+import ai.philterd.ui.TestRules;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -68,13 +69,13 @@ class RedactListsViewTest {
 
     @Test
     void philtersLimitsAreCheckedBeforeSending() {
-        assertNull(RedactListsView.termsProblem(RedactListsView.Kind.ALWAYS, Collections.nCopies(RedactListsView.MAXIMUM_TERMS, "x")));
-        assertTrue(RedactListsView.termsProblem(RedactListsView.Kind.NEVER, Collections.nCopies(RedactListsView.MAXIMUM_TERMS + 1, "x"))
+        assertNull(RedactListsView.termsProblem(RedactListsView.Kind.ALWAYS, Collections.nCopies(1000, "x"), TestRules.defaults()));
+        assertTrue(RedactListsView.termsProblem(RedactListsView.Kind.NEVER, Collections.nCopies(1001, "x"), TestRules.defaults())
                 .startsWith("The never-redact list can have at most 1000 terms"));
-        assertNull(RedactListsView.termsProblem(RedactListsView.Kind.ALWAYS, List.of("x".repeat(RedactListsView.MAXIMUM_TERM_LENGTH))));
-        assertTrue(RedactListsView.termsProblem(RedactListsView.Kind.ALWAYS, List.of("x".repeat(RedactListsView.MAXIMUM_TERM_LENGTH + 1)))
+        assertNull(RedactListsView.termsProblem(RedactListsView.Kind.ALWAYS, List.of("x".repeat(100)), TestRules.defaults()));
+        assertTrue(RedactListsView.termsProblem(RedactListsView.Kind.ALWAYS, List.of("x".repeat(101)), TestRules.defaults())
                 .startsWith("Each term can be at most 100 characters"));
-        assertNull(RedactListsView.termsProblem(RedactListsView.Kind.ALWAYS, List.of()));
+        assertNull(RedactListsView.termsProblem(RedactListsView.Kind.ALWAYS, List.of(), TestRules.defaults()));
     }
 
 }

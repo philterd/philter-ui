@@ -23,6 +23,7 @@ import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.SignInMessages;
 import ai.philterd.ui.security.Sessions;
+import ai.philterd.ui.model.PhilterRules;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.textfield.PasswordField;
@@ -54,7 +55,8 @@ public class ChangePasswordView extends StepLayout {
         this.sessions = sessions;
 
         current.setHelperText("The password you just signed in with.");
-        password.setHelperText(Passwords.RULES);
+        // A session that must change its password can still read Philter's rules.
+        password.setHelperText(rules().passwordRules());
         for (final PasswordField field : new PasswordField[] {current, password, confirm}) {
             field.setWidth("320px");
             field.setRequired(true);
@@ -66,13 +68,18 @@ public class ChangePasswordView extends StepLayout {
         addStep(current, password, confirm, submit);
     }
 
+    /** Philter's rules, read with the person's session key. */
+    private PhilterRules rules() {
+        return Sessions.currentUser().map(user -> ViewSupport.rules(clients.forUser(user))).orElse(PhilterRules.unknown());
+    }
+
     private void submit() {
 
         current.setInvalid(false);
         password.setInvalid(false);
         confirm.setInvalid(false);
 
-        final String problem = Passwords.problem(password.getValue());
+        final String problem = rules().passwordProblem(password.getValue());
         if (problem != null) {
             invalid(password, problem);
             return;
