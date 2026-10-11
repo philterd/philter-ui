@@ -54,7 +54,8 @@ Administrators also see an **All Custom Lists** tab listing every user's lists w
 **Always/Never Redact Lists** holds two lists of [terms]({$ philter_docs }/redaction/redact_lists.html) that apply to all of your redactions, whatever the policy: terms that are always redacted, and terms that are never redacted. Each has its own tab.
 
 * **Edit** a list as terms, one per line. Blank lines and surrounding spaces are ignored. Philter limits how many terms each list can have and how long each can be (by default 1000 terms of up to 100 characters).
-* **Save** a list to replace it with what is shown. Saving an empty list clears it. Saving one list keeps the other as Philter has it, including changes made elsewhere, and updates the other tab to match unless you have unsaved edits there.
+* **Save** a list to replace it with what is shown. Saving an empty list clears it. Saving one list sends only that list; the other is not changed.
+* If someone changed a list after you opened the page, for example in another tab or through the API, Philter refuses the save so neither change is lost. Philter UI then shows the list as Philter now has it and opens a dialog holding your unsaved edits to copy. Apply what you need to the current list and save again.
 
 Philter UI checks the term limits before saving. If Philter refuses a save, the page shows Philter's reason.
 

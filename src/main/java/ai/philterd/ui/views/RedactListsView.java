@@ -16,9 +16,11 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
+import ai.philterd.philter.model.RedactList;
+import ai.philterd.philter.model.RedactListTerms;
 import ai.philterd.philter.model.RedactLists;
-import ai.philterd.philter.model.RedactListsRequest;
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.model.Lines;
@@ -27,7 +29,10 @@ import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.Sessions;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.TabSheet;
@@ -42,40 +47,36 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The person's always-redact and never-redact lists, through Philter's redact lists API. Philter stores
- * both lists together and a save replaces both, so saving one list sends the other as Philter has it.
+ * The person's always-redact and never-redact lists, through Philter's redact lists API. Each list is saved on
+ * its own with the revision it was read at, so Philter refuses the save if someone changed that list since.
  */
 @Route(value = "redact-lists", layout = MainLayout.class)
 @PageTitle("Always/Never Redact Lists | Philter UI")
 @RolesAllowed(Roles.USER)
 public class RedactListsView extends VerticalLayout {
 
-    /** Philter's limits on each list, checked here too so a mistake shows before the request. */
-
     /** The two lists, and how each is named on the page and in messages. */
     enum Kind {
-        ALWAYS("Always Redact List", "always-redact", "will always be redacted"),
-        NEVER("Never Redact List", "never-redact", "will never be redacted");
+        ALWAYS("Always Redact List", "always-redact", "will always be redacted", RedactList.ALWAYS),
+        NEVER("Never Redact List", "never-redact", "will never be redacted", RedactList.NEVER);
 
         private final String title;
         private final String label;
         private final String effect;
+        private final RedactList list;
 
-        Kind(final String title, final String label, final String effect) {
+        Kind(final String title, final String label, final String effect, final RedactList list) {
             this.title = title;
             this.label = label;
             this.effect = effect;
-        }
-
-        Kind other() {
-            return this == ALWAYS ? NEVER : ALWAYS;
+            this.list = list;
         }
     }
 
     private final transient PhilterClient client;
     private final Map<Kind, TextArea> texts = new EnumMap<>(Kind.class);
-    /** What each text area last showed from Philter, to tell whether the person has edited it since. */
-    private final Map<Kind, String> shown = new EnumMap<>(Kind.class);
+    /** The revision of each list as it was last read or saved, sent with the next save of that list. */
+    private final Map<Kind, Long> revisions = new EnumMap<>(Kind.class);
 
     public RedactListsView(final PhilterClients clients) {
 
@@ -88,6 +89,7 @@ public class RedactListsView extends VerticalLayout {
         final TabSheet tabs = new TabSheet();
         for (final Kind kind : Kind.values()) {
             tabs.add(kind.title, listTab(kind, terms(lists, kind)));
+            revisions.put(kind, revision(lists, kind));
         }
         tabs.setSizeFull();
 
@@ -104,7 +106,7 @@ public class RedactListsView extends VerticalLayout {
         final TextArea text = new TextArea();
         text.setSizeFull();
         texts.put(kind, text);
-        show(kind, terms);
+        text.setValue(String.join("\n", terms));
         text.setHelperText(termsHelp(ViewSupport.rules(client)));
 
         final Button save = new Button("Save " + kind.title, e -> save(kind, text));
@@ -125,31 +127,87 @@ public class RedactListsView extends VerticalLayout {
             return;
         }
 
+        final String unsaved = text.getValue();
         try {
-            // Read the other list now rather than when the page opened, so a change made elsewhere is kept.
-            final RedactLists current = client.listRedactLists();
-            client.createRedactList(request(kind, terms, current));
-            show(kind, terms);
-            // Show the other list as Philter has it too, unless the person has unsaved edits there, so a
-            // later save of that list does not send stale terms.
-            if (!edited(kind.other())) {
-                show(kind.other(), terms(current, kind.other()));
+            final Saved saved = save(store(), kind, terms, revisions.get(kind));
+            show(kind, saved.list());
+            if (saved.changed()) {
+                showConflict(kind, unsaved);
+            } else {
+                Notifications.success(kind.title + " saved.");
             }
-            Notifications.success(kind.title + " saved.");
         } catch (final ClientException | ServiceUnavailableException | IOException e) {
             Notifications.failure(e, "The " + kind.label + " list could not be saved.");
         }
 
     }
 
+    /** Philter's per-list reads and writes, so a save can be tested without Philter. */
+    interface ListStore {
+        RedactListTerms read(RedactList list) throws IOException;
+
+        RedactListTerms replace(RedactList list, List<String> terms, Long expectedRevision) throws IOException;
+    }
+
+    private ListStore store() {
+        return new ListStore() {
+            @Override
+            public RedactListTerms read(final RedactList list) throws IOException {
+                return client.getRedactList(list);
+            }
+
+            @Override
+            public RedactListTerms replace(final RedactList list, final List<String> terms, final Long expectedRevision)
+                    throws IOException {
+                return client.replaceRedactList(list, terms, expectedRevision);
+            }
+        };
+    }
+
     /**
-     * The request that saves one list: its new terms, and the other list as Philter has it. Philter's
-     * save replaces both lists, so sending the other one is what keeps it.
+     * The list after a save: as written, or, when someone changed it since it was read ({@code changed}), as
+     * Philter now has it, with nothing written.
      */
-    static RedactListsRequest request(final Kind kind, final List<String> terms, final RedactLists current) {
-        return kind == Kind.ALWAYS
-                ? new RedactListsRequest(terms, terms(current, Kind.NEVER))
-                : new RedactListsRequest(terms(current, Kind.ALWAYS), terms);
+    record Saved(RedactListTerms list, boolean changed) {
+    }
+
+    /**
+     * Replaces only {@code kind}'s list, if it is still at {@code revision}. When it is not, nothing is written
+     * and the list is read again so the person can start from what Philter has.
+     */
+    static Saved save(final ListStore store, final Kind kind, final List<String> terms, final Long revision)
+            throws IOException {
+        try {
+            return new Saved(store.replace(kind.list, terms, revision), false);
+        } catch (final ClientException e) {
+            if (!ErrorReasons.REDACT_LIST_CHANGED.equals(e.getReason())) {
+                throw e;
+            }
+            return new Saved(store.read(kind.list), true);
+        }
+    }
+
+    /** What the person is told when their save was refused because someone else changed the list. */
+    static String conflictMessage(final Kind kind) {
+        return "Someone changed the " + kind.label + " list after you opened it, so your edits were not saved. "
+                + "The list now shows Philter's current terms. Your edits are below: copy what you need, apply "
+                + "it to the current list, and save again.";
+    }
+
+    private void showConflict(final Kind kind, final String unsaved) {
+        final TextArea edits = new TextArea("Your unsaved edits");
+        edits.setValue(unsaved);
+        edits.setReadOnly(true);
+        edits.setWidthFull();
+        edits.setHeight("240px");
+
+        final Dialog dialog = new Dialog();
+        dialog.setWidth("600px");
+        dialog.add(new H3(kind.title + " Changed"), new Paragraph(conflictMessage(kind)), edits);
+        final Button close = new Button("Close", e -> dialog.close());
+        close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        dialog.getFooter().add(close);
+        dialog.open();
     }
 
     /** What is wrong with the terms under Philter's limits, or {@code null} if nothing is. */
@@ -177,14 +235,17 @@ public class RedactListsView extends VerticalLayout {
         return limits + "Saving an empty list clears it.";
     }
 
-    private void show(final Kind kind, final List<String> terms) {
-        final String value = String.join("\n", terms);
-        texts.get(kind).setValue(value);
-        shown.put(kind, value);
+    /** Shows a list as Philter has it, and keeps its revision for the next save. */
+    private void show(final Kind kind, final RedactListTerms list) {
+        texts.get(kind).setValue(String.join("\n", ViewSupport.orEmpty(list.getTerms())));
+        revisions.put(kind, list.getRevision());
     }
 
-    private boolean edited(final Kind kind) {
-        return !texts.get(kind).getValue().equals(shown.get(kind));
+    private static Long revision(final RedactLists lists, final Kind kind) {
+        if (lists == null) {
+            return null;
+        }
+        return kind == Kind.ALWAYS ? lists.getAlwaysRedactRevision() : lists.getNeverRedactRevision();
     }
 
     private static List<String> terms(final RedactLists lists, final Kind kind) {
