@@ -160,7 +160,11 @@ Cross-user access by administrators (`ADMIN_CROSS_USER_ACCESS_ENABLED`) and ledg
 
 ### Audit Log
 
-**Audit Log** exports Philter's [audit log]({$ philter_docs }/auditing.html) as one CSV file for a range of whole days, up to the longest range Philter allows (31 days by default), most recent first. The days are read in Philter's time zone, and times in the file are in UTC. An export holds at most 100,000 events; when a range has more, Philter UI says so, and a shorter range gets the rest. The export is itself recorded in the audit log, once for each page of events that Philter UI reads (up to 1,000 by default). Philter does not record redacted values, passwords, or secrets in audit events, but events do include usernames, client addresses, document IDs, and text that callers supply, such as legal hold references.
+**Audit Log** lets you browse and export Philter's [audit log]({$ philter_docs }/auditing.html), which covers the whole deployment.
+
+**Browse** lists events newest first, a page at a time, with the number of events that match. Each row shows the time (UTC), the event type, the **User** who performed it, the client address, the source, and the details. **User** is the acting user's username, including for a user since deactivated; for an event whose actor is not a user, it shows the ID Philter stored, or a dash when there is none. Filter by one event type (such as `policy_deleted`), by whole days in UTC (**From** and **To**, either of which can be left open), or by the user who acted, then select **Apply**. Some events record what they concern rather than who acted, so a user filter leaves them out. Filtering by another user needs Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED`. When Philter refuses a filter, such as an event type it does not record, the page shows its reason. Each page read is itself recorded in the audit log.
+
+**Export** saves the audit log as one CSV file for a range of whole days, up to the longest range Philter allows (31 days by default), most recent first. The days are read in Philter's time zone, and times in the file are in UTC. An export holds at most 100,000 events; when a range has more, Philter UI says so, and a shorter range gets the rest. The export is itself recorded in the audit log, once for each page of events that Philter UI reads (up to 1,000 by default). Philter does not record redacted values, passwords, or secrets in audit events, but events do include usernames, client addresses, document IDs, and text that callers supply, such as legal hold references.
 
 ## Creating API keys
 

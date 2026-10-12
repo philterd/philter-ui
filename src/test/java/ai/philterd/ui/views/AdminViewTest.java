@@ -16,12 +16,18 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.AdminSettings;
+import ai.philterd.philter.model.AuditEvent;
+import ai.philterd.philter.model.GetAuditLogResponse;
 import ai.philterd.philter.model.UpdateAdminSettingsRequest;
 import ai.philterd.philter.model.User;
 import ai.philterd.ui.TestRules;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -186,6 +192,56 @@ class AdminViewTest {
             seen.add(password);
         }
         assertEquals(50, seen.size());
+    }
+
+    private static AuditEvent event(final String username, final String id) {
+        final AuditEvent event = new AuditEvent();
+        event.setUsername(username);
+        event.setApiKeyId(id);
+        return event;
+    }
+
+    @Test
+    void eachEventNamesWhoActedOrFallsBack() {
+        assertEquals("jordan", AdminView.actor(event("jordan", "66f1")));
+        // An event whose actor is not a user keeps the id Philter stored.
+        assertEquals("66f1", AdminView.actor(event(null, "66f1")));
+        assertEquals("-", AdminView.actor(event(null, null)));
+        assertEquals("-", AdminView.actor(event(" ", "")));
+    }
+
+    @Test
+    void auditFiltersMapToPhiltersParameters() {
+        final AdminView.AuditFilter filter = AdminView.auditFilter(" policy_deleted ", LocalDate.of(2026, 10, 1),
+                LocalDate.of(2026, 10, 3), " jordan ");
+        assertEquals("policy_deleted", filter.event());
+        assertEquals(Instant.parse("2026-10-01T00:00:00Z"), filter.from());
+        // The last day is included in full: Philter's to is exclusive.
+        assertEquals(Instant.parse("2026-10-04T00:00:00Z"), filter.to());
+        assertEquals("jordan", filter.owner());
+        assertEquals(AdminView.AuditFilter.NONE, AdminView.auditFilter("", null, null, "  "));
+        assertEquals("From must be on or before To.",
+                AdminView.auditFilterProblem(LocalDate.of(2026, 10, 2), LocalDate.of(2026, 10, 1)));
+        assertNull(AdminView.auditFilterProblem(null, LocalDate.of(2026, 10, 1)));
+    }
+
+    @Test
+    void theAuditLogIsReadInPhilterSizedPagesWithTheTotal() throws IOException {
+        final List<String> requests = new ArrayList<>();
+        final AdminView.AuditFilter filter = AdminView.auditFilter("policy_deleted", null, null, null);
+        final AdminView.AuditPage page = AdminView.readAudit((f, offset, limit) -> {
+            assertEquals(filter, f);
+            requests.add(offset + "+" + limit);
+            final GetAuditLogResponse response = new GetAuditLogResponse();
+            response.setEvents(Collections.nCopies(Math.min(limit, 230 - offset), event("jordan", "1")));
+            response.setTotal(230);
+            return response;
+        }, filter, 50, 200);
+        assertEquals(List.of("50+100", "150+100"), requests);
+        assertEquals(180, page.events().size());
+        assertEquals(230, page.total());
+        assertEquals("230 events", AdminView.auditTotal(page.total()));
+        assertEquals("1 event", AdminView.auditTotal(1));
     }
 
 }

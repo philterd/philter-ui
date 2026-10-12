@@ -17,7 +17,9 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.AdminSettings;
+import ai.philterd.philter.model.AuditEvent;
 import ai.philterd.philter.model.AuditLogExport;
+import ai.philterd.philter.model.GetAuditLogResponse;
 import ai.philterd.philter.model.SigningKey;
 import ai.philterd.philter.model.UpdateAdminSettingsRequest;
 import ai.philterd.philter.model.User;
@@ -44,6 +46,7 @@ import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.AttachmentType;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -61,13 +64,16 @@ import jakarta.annotation.security.RolesAllowed;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * Administration through Philter's API: users, deployment settings and the signing key, and the audit log.
@@ -492,7 +498,107 @@ public class AdminView extends VerticalLayout {
 
     // Audit log.
 
+    /** The filters the audit log is browsed with, in the form Philter takes them. */
+    record AuditFilter(String event, Instant from, Instant to, String owner) {
+        static final AuditFilter NONE = new AuditFilter(null, null, null, null);
+    }
+
+    /** Reads a page of the audit log, so browsing it can be tested without Philter. */
+    interface AuditSource {
+        GetAuditLogResponse read(AuditFilter filter, int offset, int limit) throws IOException;
+    }
+
     private Component auditTab() {
+
+        final VerticalLayout layout = new VerticalLayout(auditBrowser(), auditExport());
+        layout.setSizeFull();
+        return layout;
+
+    }
+
+    /** The audit log, newest first, a page at a time, filtered by event type, days, and user. */
+    private Component auditBrowser() {
+
+        final TextField event = new TextField("Event type");
+        event.setPlaceholder("policy_deleted");
+        event.setClearButtonVisible(true);
+        final DatePicker from = new DatePicker("From (UTC)");
+        from.setClearButtonVisible(true);
+        final DatePicker to = new DatePicker("To (UTC)");
+        to.setClearButtonVisible(true);
+        final TextField user = new TextField("User");
+        user.setPlaceholder("username");
+        user.setClearButtonVisible(true);
+
+        final Span total = new Span();
+        final Span problem = new Span();
+        problem.getStyle().set("color", "var(--lumo-error-text-color)");
+        final AuditFilter[] filter = {AuditFilter.NONE};
+        final AuditSource source = (f, offset, limit) -> client.getAuditLog(f.event(), f.from(), f.to(), f.owner(),
+                offset, limit);
+
+        final Grid<AuditEvent> events = new Grid<>();
+        events.addColumn(e -> ViewSupport.utc(e.getTimestamp())).setHeader("Time").setAutoWidth(true).setFlexGrow(0);
+        events.addColumn(AuditEvent::getEvent).setHeader("Event").setAutoWidth(true).setResizable(true);
+        events.addColumn(AdminView::actor).setHeader("User").setAutoWidth(true).setResizable(true);
+        events.addColumn(AuditEvent::getClientIpAddress).setHeader("Client Address").setAutoWidth(true).setResizable(true);
+        events.addColumn(AuditEvent::getSource).setHeader("Source").setAutoWidth(true).setResizable(true);
+        events.addColumn(AuditEvent::getDetails).setHeader("Details").setResizable(true);
+        // One request per page; Philter's total is shown from it rather than read with another request, since
+        // Philter records every read of the log.
+        events.setItems(query -> {
+            try {
+                final AuditPage page = readAudit(source, filter[0], query.getOffset(), query.getLimit());
+                total.setText(auditTotal(page.total()));
+                problem.setText("");
+                return page.events().stream();
+            } catch (final ClientException ex) {
+                if (ex.getStatusCode() != 400 && ex.getStatusCode() != 404) {
+                    throw ex;
+                }
+                total.setText("");
+                problem.setText(ex.getErrorMessage() == null ? "Philter refused the filter." : ex.getErrorMessage());
+                return Stream.empty();
+            } catch (final IOException ex) {
+                throw new PhilterUnreachableException(ex);
+            }
+        });
+        events.setPageSize(Pages.MAX_LIMIT);
+        events.setMinHeight("300px");
+        events.setSizeFull();
+
+        final Button apply = new Button("Apply", VaadinIcon.FILTER.create(), e -> {
+            final String rangeProblem = auditFilterProblem(from.getValue(), to.getValue());
+            if (rangeProblem != null) {
+                problem.setText(rangeProblem);
+                return;
+            }
+            filter[0] = auditFilter(event.getValue(), from.getValue(), to.getValue(), user.getValue());
+            events.getDataProvider().refreshAll();
+        });
+        apply.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        final Button refresh = new Button("Refresh", VaadinIcon.REFRESH.create(), e -> events.getDataProvider().refreshAll());
+        refresh.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        final HorizontalLayout filters = new HorizontalLayout(event, from, to, user, apply, refresh);
+        filters.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.BASELINE);
+        filters.getStyle().set("flex-wrap", "wrap");
+
+        final Paragraph about = new Paragraph("Philter's audit log, newest first, across the whole deployment. Filter by "
+                + "one event type, by whole days in UTC, or by the user who acted; some events record what they "
+                + "concern rather than who acted, so a user filter leaves them out. Each page read is itself recorded "
+                + "in the audit log. ");
+        about.add(PhilterDocs.link("Learn more about the audit log.", "auditing.html"));
+
+        final VerticalLayout layout = new VerticalLayout(new H3("Browse"), about, filters,
+                new HorizontalLayout(total, problem), events);
+        layout.setPadding(false);
+        layout.setSizeFull();
+        return layout;
+
+    }
+
+    private Component auditExport() {
 
         final LocalDate today = LocalDate.now();
         final PhilterRules rules = ViewSupport.rules(client);
@@ -554,15 +660,58 @@ public class AdminView extends VerticalLayout {
                 + (window == null ? "" : ", up to " + (window + 1) + " days") + ", most recent first. The days are read in Philter's "
                 + "time zone, and times in the file are UTC. An export holds at most " + MAX_AUDIT_EXPORT_EVENTS + " events. "
                 + "The export is itself recorded in the audit log. ");
-        about.add(PhilterDocs.link("Learn more about the audit log.", "auditing.html"));
-
-        final VerticalLayout layout = new VerticalLayout(about, range, downloader);
+        final VerticalLayout layout = new VerticalLayout(new H3("Export"), about, range, downloader);
+        layout.setPadding(false);
         layout.setMaxWidth("900px");
         return layout;
 
     }
 
     // Logic the tests cover.
+
+    /** A range of the audit log and how many events match the filters across every page. */
+    record AuditPage(List<AuditEvent> events, long total) {
+    }
+
+    /** Reads the events from {@code offset}, in Philter-sized pages, with the total from the last page read. */
+    static AuditPage readAudit(final AuditSource source, final AuditFilter filter, final int offset, final int limit)
+            throws IOException {
+        final long[] total = {0};
+        final List<AuditEvent> events = Pages.read(offset, limit, (start, count) -> {
+            final GetAuditLogResponse page = source.read(filter, start, count);
+            total[0] = page.getTotal();
+            return ViewSupport.orEmpty(page.getEvents());
+        });
+        return new AuditPage(events, total[0]);
+    }
+
+    /**
+     * The filters as Philter takes them: blank fields are left out, and the days are whole days in UTC, so
+     * {@code to} is the start of the day after the last one.
+     */
+    static AuditFilter auditFilter(final String event, final LocalDate from, final LocalDate to, final String user) {
+        return new AuditFilter(blankToNull(event),
+                from == null ? null : from.atStartOfDay(ZoneOffset.UTC).toInstant(),
+                to == null ? null : to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant(),
+                blankToNull(user));
+    }
+
+    /** What is wrong with the days to browse, or {@code null}. Either may be left open. */
+    static String auditFilterProblem(final LocalDate from, final LocalDate to) {
+        return from != null && to != null && from.isAfter(to) ? "From must be on or before To." : null;
+    }
+
+    /** Who performed an event: their username, else the id Philter stored, else a dash. */
+    static String actor(final AuditEvent event) {
+        if (event.getUsername() != null && !event.getUsername().isBlank()) {
+            return event.getUsername();
+        }
+        return event.getApiKeyId() == null || event.getApiKeyId().isBlank() ? "-" : event.getApiKeyId();
+    }
+
+    static String auditTotal(final long total) {
+        return total == 1 ? "1 event" : total + " events";
+    }
 
     static String status(final User u) {
         return u.isActive() ? "Active" : "Deactivated";
