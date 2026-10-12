@@ -17,8 +17,6 @@ package ai.philterd.ui.model;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -51,22 +49,6 @@ class PolicyJsonTest {
     void formattingDoesNotMakeJsonDifferent() {
         assertTrue(PolicyJson.sameJson("{\"a\":1,\"b\":[1,2]}", "{\n  \"a\": 1,\n  \"b\": [1, 2]\n}"));
         assertFalse(PolicyJson.sameJson("{\"a\":1}", "{\"a\":2}"));
-    }
-
-    @Test
-    void differencesShowBeforeAndAfter() {
-        final List<PolicyJson.Difference> differences = PolicyJson.differences(
-                "{\"identifiers\":{\"ssn\":{\"s\":\"REDACT\"},\"email\":{}},\"name\":\"a\"}",
-                "{\"identifiers\":{\"ssn\":{\"s\":\"MASK\"},\"phone\":{}},\"name\":\"a\"}");
-        assertEquals(List.of(
-                new PolicyJson.Difference("replace", "/identifiers/ssn/s", "REDACT", "MASK"),
-                new PolicyJson.Difference("remove", "/identifiers/email", "{}", ""),
-                new PolicyJson.Difference("add", "/identifiers/phone", "", "{}")), differences);
-    }
-
-    @Test
-    void identicalRevisionsHaveNoDifferences() {
-        assertEquals(List.of(), PolicyJson.differences("{\"a\":[1,2]}", "{ \"a\" : [1, 2] }"));
     }
 
 }

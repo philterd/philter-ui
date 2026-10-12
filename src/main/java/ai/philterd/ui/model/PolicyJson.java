@@ -17,24 +17,15 @@ package ai.philterd.ui.model;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
-/** Policy JSON as Philter UI shows, checks, and compares it. Philter does the full validation on save. */
+/** Policy JSON as Philter UI shows and checks it. Philter does the full validation on save. */
 public final class PolicyJson {
 
     private static final Gson PRETTY = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-
-    /** One difference between two revisions: an added, removed, or replaced value at a JSON path. */
-    public record Difference(String operation, String path, String before, String after) {
-    }
 
     private PolicyJson() {
     }
@@ -76,50 +67,6 @@ public final class PolicyJson {
         } catch (final JsonParseException | NullPointerException e) {
             return Objects.equals(a, b);
         }
-    }
-
-    /**
-     * The differences between two revisions. Objects are compared key by key; arrays and values that
-     * differ are reported as one replacement at their path, like the RFC 6902 patch Philter's diff
-     * returns, but with the value before the change as well as after.
-     */
-    public static List<Difference> differences(final String from, final String to) {
-        final List<Difference> differences = new ArrayList<>();
-        collect(JsonParser.parseString(from), JsonParser.parseString(to), "", differences);
-        return differences;
-    }
-
-    private static void collect(final JsonElement from, final JsonElement to, final String path,
-                                final List<Difference> differences) {
-        if (from.equals(to)) {
-            return;
-        }
-        if (from.isJsonObject() && to.isJsonObject()) {
-            final JsonObject fromObject = from.getAsJsonObject();
-            final JsonObject toObject = to.getAsJsonObject();
-            for (final String key : fromObject.keySet()) {
-                final String childPath = path + "/" + key;
-                if (!toObject.has(key)) {
-                    differences.add(new Difference("remove", childPath, text(fromObject.get(key)), ""));
-                } else {
-                    collect(fromObject.get(key), toObject.get(key), childPath, differences);
-                }
-            }
-            for (final String key : toObject.keySet()) {
-                if (!fromObject.has(key)) {
-                    differences.add(new Difference("add", path + "/" + key, "", text(toObject.get(key))));
-                }
-            }
-        } else {
-            differences.add(new Difference("replace", path.isEmpty() ? "/" : path, text(from), text(to)));
-        }
-    }
-
-    private static String text(final JsonElement element) {
-        if (element == null || element.isJsonNull()) {
-            return "";
-        }
-        return element.isJsonPrimitive() ? element.getAsString() : element.toString();
     }
 
 }

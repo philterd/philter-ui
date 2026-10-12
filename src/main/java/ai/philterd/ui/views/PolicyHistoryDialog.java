@@ -17,10 +17,12 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.ListOptions;
+import ai.philterd.philter.model.PolicyDiff;
 import ai.philterd.philter.model.PolicyVersionSummary;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
-import ai.philterd.ui.model.PolicyJson;
+import com.google.gson.JsonElement;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -173,8 +175,7 @@ final class PolicyHistoryDialog {
                 return;
             }
             try {
-                result.add(differences(from.getValue(), to.getValue(),
-                        client.getPolicyVersion(name, from.getValue()), client.getPolicyVersion(name, to.getValue())));
+                result.add(differences(client.diffPolicy(name, from.getValue(), to.getValue())));
             } catch (final ClientException | ServiceUnavailableException | IOException ex) {
                 Notifications.failure(ex, "The revisions could not be read.");
             }
@@ -195,20 +196,46 @@ final class PolicyHistoryDialog {
 
     }
 
-    private static com.vaadin.flow.component.Component differences(final int fromRevision, final int toRevision,
-                                                                   final String from, final String to) {
-        final List<PolicyJson.Difference> differences = PolicyJson.differences(from, to);
-        if (differences.isEmpty()) {
-            return new Span("Revisions " + fromRevision + " and " + toRevision + " have the same content.");
+    private static Component differences(final PolicyDiff diff) {
+        final List<Change> changes = changes(diff);
+        if (changes.isEmpty()) {
+            return new Span(sameContent(diff));
         }
-        final Grid<PolicyJson.Difference> grid = new Grid<>();
-        grid.addColumn(PolicyJson.Difference::operation).setHeader("Change").setAutoWidth(true).setFlexGrow(0);
-        grid.addColumn(PolicyJson.Difference::path).setHeader("Path").setFlexGrow(2).setResizable(true);
-        grid.addColumn(PolicyJson.Difference::before).setHeader("Before").setFlexGrow(1).setResizable(true);
-        grid.addColumn(PolicyJson.Difference::after).setHeader("After").setFlexGrow(1).setResizable(true);
-        grid.setItems(differences);
+        final Grid<Change> grid = new Grid<>();
+        grid.addColumn(Change::operation).setHeader("Change").setAutoWidth(true).setFlexGrow(0);
+        grid.addColumn(Change::path).setHeader("Path").setFlexGrow(2).setResizable(true);
+        grid.addColumn(Change::before).setHeader("Before").setFlexGrow(1).setResizable(true);
+        grid.addColumn(Change::after).setHeader("After").setFlexGrow(1).setResizable(true);
+        grid.setItems(changes);
         grid.setAllRowsVisible(true);
         return grid;
+    }
+
+    /** One change between two revisions as shown: the operation, the path as Philter gives it, and the values. */
+    record Change(String operation, String path, String before, String after) {
+    }
+
+    /**
+     * The changes in Philter's diff, each with the value before it (for a replace or remove) and after it (for
+     * an add or replace). Paths are shown as Philter returns them, escaped per RFC 6901.
+     */
+    static List<Change> changes(final PolicyDiff diff) {
+        return ViewSupport.orEmpty(diff.getChanges()).stream()
+                .map(change -> new Change(change.getOp(), change.getPath(),
+                        PolicyDiff.Change.ADD.equals(change.getOp()) ? "" : text(change.getOldValue()),
+                        PolicyDiff.Change.REMOVE.equals(change.getOp()) ? "" : text(change.getValue())))
+                .toList();
+    }
+
+    static String sameContent(final PolicyDiff diff) {
+        return "Revisions " + diff.getFrom() + " and " + diff.getTo() + " have the same content.";
+    }
+
+    private static String text(final JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return element == null ? "" : "null";
+        }
+        return element.isJsonPrimitive() ? element.getAsString() : element.toString();
     }
 
     /** Reads a revision of a deleted policy and saves a policy, so a restore can be tested without Philter. */
