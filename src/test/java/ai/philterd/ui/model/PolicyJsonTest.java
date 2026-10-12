@@ -27,9 +27,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PolicyJsonTest {
 
     @Test
-    void theTemplateIsAValidPolicyObject() {
-        assertNull(PolicyJson.problem(PolicyJson.template()));
-        assertTrue(PolicyJson.template().contains("\"identifiers\""));
+    void theEmptyPolicyIsAValidPolicyObject() {
+        assertNull(PolicyJson.problem(PolicyJson.EMPTY));
+        assertTrue(PolicyJson.EMPTY.contains("\"identifiers\""));
     }
 
     @Test

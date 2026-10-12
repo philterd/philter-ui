@@ -255,10 +255,46 @@ public class PoliciesView extends VerticalLayout {
 
     }
 
+    /** The Philter template every new policy starts from. */
+    static final String TEMPLATE = "default";
+
+    /** Shown when the editor opens without Philter's template. */
+    static final String TEMPLATE_UNAVAILABLE = "Philter's policy template could not be loaded, so the new policy "
+            + "starts empty. Build it in the policy editor or add identifiers here.";
+
+    /** Reads a policy template from Philter, so starting a new policy can be tested without Philter. */
+    interface TemplateSource {
+        String read(String templateName) throws IOException;
+    }
+
+    /** The JSON a new policy starts from, and why it is not Philter's template, if it is not. */
+    record NewPolicy(String json, String problem) {
+    }
+
+    /**
+     * Starts a new policy from Philter's {@link #TEMPLATE}, read now so it follows Philter's policy schema. When it
+     * cannot be read, the policy starts from {@link PolicyJson#EMPTY} and {@code problem} says so.
+     */
+    static NewPolicy newPolicy(final TemplateSource source) {
+        try {
+            final String template = source.read(TEMPLATE);
+            if (template != null && PolicyJson.problem(template) == null) {
+                return new NewPolicy(PolicyJson.pretty(template), null);
+            }
+        } catch (final ClientException | ServiceUnavailableException | IOException e) {
+            // Fall through to the empty policy.
+        }
+        return new NewPolicy(PolicyJson.EMPTY, TEMPLATE_UNAVAILABLE);
+    }
+
     private void openCreate() {
 
-        final PolicyForm form = new PolicyForm("", false, PolicyJson.template(), "", "", policyEditorUrl, rules);
+        final NewPolicy start = newPolicy(client::getPolicyTemplate);
+        final PolicyForm form = new PolicyForm("", false, start.json(), "", "", policyEditorUrl, rules);
         final Dialog dialog = form.dialog("New Policy");
+        if (start.problem() != null) {
+            Notifications.warning(start.problem());
+        }
 
         final Button save = new Button("Save", e -> {
             form.clearErrors();

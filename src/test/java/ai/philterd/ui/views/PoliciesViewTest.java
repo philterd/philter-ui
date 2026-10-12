@@ -16,9 +16,15 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
+import ai.philterd.ui.model.PolicyJson;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class PoliciesViewTest {
 
@@ -65,6 +71,30 @@ class PoliciesViewTest {
         assertEquals("9f86d081…", PolicyHistoryDialog.shortHash("9f86d081884c7d659a2feaa0c55ad015"));
         assertEquals("abc", PolicyHistoryDialog.shortHash("abc"));
         assertEquals("", PolicyHistoryDialog.shortHash(null));
+    }
+
+    @Test
+    void aNewPolicyStartsFromPhiltersTemplate() {
+        final PoliciesView.NewPolicy start = PoliciesView.newPolicy(name -> {
+            assertEquals("default", name);
+            return "{\"identifiers\":{\"ssn\":{\"ssnFilterStrategies\":[{\"strategy\":\"REDACT\"}]}}}";
+        });
+        assertNull(start.problem());
+        assertTrue(start.json().contains("\"ssnFilterStrategies\""));
+        assertTrue(start.json().contains("\n"), "shown indented");
+    }
+
+    @Test
+    void aNewPolicyStartsEmptyWhenTheTemplateCannotBeRead() {
+        for (final PoliciesView.TemplateSource failing : new PoliciesView.TemplateSource[] {
+                name -> { throw new ClientException("HTTP 404", 404, "No such template."); },
+                name -> { throw new ServiceUnavailableException("Philter is unavailable."); },
+                name -> { throw new IOException("connection refused"); },
+                name -> "not json"}) {
+            final PoliciesView.NewPolicy start = PoliciesView.newPolicy(failing);
+            assertEquals(PolicyJson.EMPTY, start.json());
+            assertEquals(PoliciesView.TEMPLATE_UNAVAILABLE, start.problem());
+        }
     }
 
 }

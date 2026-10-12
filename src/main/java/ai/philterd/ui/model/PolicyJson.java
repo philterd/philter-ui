@@ -23,9 +23,6 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -42,14 +39,8 @@ public final class PolicyJson {
     private PolicyJson() {
     }
 
-    /** The JSON a new policy starts from. Philter's API has no template, so Philter UI keeps its own. */
-    public static String template() {
-        try (InputStream in = PolicyJson.class.getResourceAsStream("/templates/new-policy.json")) {
-            return new String(Objects.requireNonNull(in, "templates/new-policy.json").readAllBytes(), StandardCharsets.UTF_8);
-        } catch (final IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
+    /** The smallest policy, which a new policy starts from when Philter's template cannot be read. */
+    public static final String EMPTY = "{\n  \"identifiers\": {}\n}";
 
     /** The JSON indented for reading, or the text unchanged if it is not JSON. */
     public static String pretty(final String json) {
