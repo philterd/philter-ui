@@ -17,6 +17,7 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
+import ai.philterd.ui.security.PhilterFailures;
 import ai.philterd.ui.security.SignInMessages;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -41,15 +42,22 @@ final class Notifications {
         show(message, NotificationVariant.LUMO_ERROR);
     }
 
-    /** Reports a failed request to Philter, with Philter's explanation when it gave one. */
+    /**
+     * Reports a failed request to Philter, with Philter's explanation when it gave one, and the id Philter gave the
+     * request when it answered.
+     */
     static void failure(final Exception exception, final String fallback) {
+        FailureNotice.open(failureMessage(exception, fallback), PhilterFailures.requestIdFor(exception));
+    }
+
+    static String failureMessage(final Exception exception, final String fallback) {
         if (exception instanceof IOException || exception instanceof ServiceUnavailableException) {
-            failure(SignInMessages.UNAVAILABLE);
-        } else if (exception instanceof ClientException client && client.getErrorMessage() != null) {
-            failure(client.getErrorMessage());
-        } else {
-            failure(fallback);
+            return SignInMessages.UNAVAILABLE;
         }
+        if (exception instanceof ClientException client && client.getErrorMessage() != null) {
+            return PhilterFailures.messageFor(client);
+        }
+        return fallback;
     }
 
     private static void show(final String message, final NotificationVariant variant) {

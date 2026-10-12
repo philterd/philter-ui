@@ -43,7 +43,8 @@ public class PhilterClients {
         this.endpoint = endpoint;
         this.documentTimeoutSeconds = documentTimeoutSeconds;
         this.addresses = addresses;
-        this.anonymous = new PhilterClient.PhilterClientBuilder().withEndpoint(endpoint).build();
+        this.anonymous = new PhilterClient.PhilterClientBuilder().withEndpoint(endpoint)
+                .withHttpClientBuilder(LoggingHttpClient.builder(PhilterClient.DEFAULT_TIMEOUT_SEC)).build();
     }
 
     public PhilterClients(final String endpoint) {
@@ -67,6 +68,7 @@ public class PhilterClients {
     public PhilterClient forDocuments(final PhilterUser user) {
         return user.documentClient(() -> new PhilterClient.PhilterClientBuilder()
                 .withEndpoint(endpoint)
+                .withHttpClientBuilder(LoggingHttpClient.builder(documentTimeoutSeconds))
                 .withApiKey("Bearer " + user.sessionKey())
                 .withTimeout(documentTimeoutSeconds)
                 .withClientAddress(addresses::current)
@@ -80,6 +82,7 @@ public class PhilterClients {
     PhilterClient forSessionKey(final String sessionKey) {
         return new PhilterClient.PhilterClientBuilder()
                 .withEndpoint(endpoint)
+                .withHttpClientBuilder(LoggingHttpClient.builder(PhilterClient.DEFAULT_TIMEOUT_SEC))
                 .withApiKey("Bearer " + sessionKey)
                 .withClientAddress(addresses::current)
                 .build();

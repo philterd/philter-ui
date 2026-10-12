@@ -48,7 +48,13 @@ abstract class PhilterFailureView<T extends Exception> extends VerticalLayout im
                 e -> UI.getCurrent().getPage().reload());
         retry.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         removeAll();
-        add(new H2("This page could not be opened"), new Paragraph(message(parameter.getCaughtException())), retry);
+        add(new H2("This page could not be opened"), new Paragraph(message(parameter.getCaughtException())));
+        final String requestId = PhilterFailures.requestIdFor(parameter.getCaughtException());
+        if (requestId != null) {
+            add(new Paragraph("If this keeps happening, give your administrator the request ID below."),
+                    FailureNotice.requestId(requestId));
+        }
+        add(retry);
         return status;
     }
 

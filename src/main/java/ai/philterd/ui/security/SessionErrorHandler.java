@@ -17,9 +17,8 @@ package ai.philterd.ui.security;
 
 import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
+import ai.philterd.ui.views.FailureNotice;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.server.DefaultErrorHandler;
 import com.vaadin.flow.server.ErrorEvent;
 import com.vaadin.flow.server.ServiceInitEvent;
@@ -64,11 +63,9 @@ public class SessionErrorHandler implements VaadinServiceInitListener {
             return;
         }
 
-        LOGGER.warn("A request to Philter failed: {}", message);
-
-        final Notification notification = new Notification(message, 5000, Notification.Position.BOTTOM_START);
-        notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-        notification.open();
+        final String requestId = PhilterFailures.requestIdFor(event.getThrowable());
+        LOGGER.warn("A request to Philter failed: {} (request id {})", message, requestId == null ? "none" : requestId);
+        FailureNotice.open(message, requestId);
 
     }
 

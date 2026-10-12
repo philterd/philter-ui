@@ -17,6 +17,7 @@ package ai.philterd.ui.security;
 
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ErrorReasons;
+import ai.philterd.philter.model.exceptions.PhilterError;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 
 /** What to tell a person when a request to Philter failed. */
@@ -36,6 +37,23 @@ public final class PhilterFailures {
      * Philter's explanation, its HTTP status when it gave none, or that Philter cannot be reached, for the
      * first failed request to Philter in the cause chain; {@code null} when the failure is not one.
      */
+    /**
+     * The id Philter gave the failed request, for the first Philter response in the cause chain, so a person can
+     * quote it to an administrator; {@code null} when the failure did not come from a Philter response, such as
+     * Philter being unreachable.
+     */
+    public static String requestIdFor(final Throwable throwable) {
+        for (Throwable cause = throwable; cause != null; cause = cause.getCause()) {
+            if (cause instanceof PhilterError error) {
+                return error.getRequestId() == null || error.getRequestId().isBlank() ? null : error.getRequestId();
+            }
+            if (cause instanceof PhilterUnreachableException) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     public static String messageFor(final Throwable throwable) {
         for (Throwable cause = throwable; cause != null; cause = cause.getCause()) {
             if (cause instanceof ClientException refusal) {
