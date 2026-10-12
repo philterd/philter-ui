@@ -19,6 +19,8 @@ import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.ApiKey;
 import ai.philterd.philter.model.ApiKeyScopeDescription;
 import ai.philterd.philter.model.CurrentUser;
+import ai.philterd.philter.model.GetApiKeysResponse;
+import ai.philterd.philter.model.GetWebhookDeliveriesResponse;
 import ai.philterd.philter.model.MfaEnrollment;
 import ai.philterd.philter.model.Webhook;
 import ai.philterd.philter.model.WebhookDelivery;
@@ -27,7 +29,7 @@ import ai.philterd.philter.model.WebhookTestResult;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
-import ai.philterd.ui.model.Pages;
+import ai.philterd.ui.model.Listing;
 import ai.philterd.ui.security.Notice;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
@@ -296,38 +298,35 @@ public class AccountView extends VerticalLayout {
 
         keys.addColumn(ApiKey::getPrefix).setHeader("Key").setAutoWidth(true);
         keys.addColumn(key -> scopeSummary(key.getScopes())).setHeader("Scopes").setFlexGrow(1);
-        keys.addColumn(key -> ViewSupport.utc(key.getCreated())).setHeader("Created").setAutoWidth(true);
+        keys.addColumn(key -> ViewSupport.utc(key.getCreated())).setHeader("Created").setAutoWidth(true)
+                .setSortProperty("created");
         keys.addColumn(key -> key.isBootstrap() ? "Bootstrap key" : "").setHeader("").setAutoWidth(true);
         keys.addComponentColumn(key -> ViewSupport.button("Edit scopes", VaadinIcon.KEY,
                 "Edit scopes of key " + key.getPrefix(), () -> openEditScopes(key)))
                 .setHeader("Scopes").setAutoWidth(true).setFlexGrow(0);
         keys.addComponentColumn(key -> revokeButton(key, "Revoke", "Revoke key " + key.getPrefix()))
                 .setHeader("Revoke").setAutoWidth(true).setFlexGrow(0);
-        keys.setItems(
-                query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                        (offset, limit) -> ViewSupport.orEmpty(client.getApiKeys(null, offset, limit, false).getApiKeys())))
-                        .stream(),
-                query -> Math.toIntExact(ViewSupport.unchecked(() -> client.getApiKeys(null, 0, 1, false).getTotal())));
+        final ListingProvider<ApiKey> keyListing = ListingProvider.bind(keys,
+                options -> apiKeys(client.getApiKeys(null, options.session(false))));
         keys.setAllRowsVisible(true);
 
-        signIns.addColumn(key -> ViewSupport.utc(key.getCreated())).setHeader("Signed in").setAutoWidth(true);
+        signIns.addColumn(key -> ViewSupport.utc(key.getCreated())).setHeader("Signed in").setAutoWidth(true)
+                .setSortProperty("created");
         signIns.addColumn(key -> ViewSupport.utc(key.getLastUsedAt())).setHeader("Last used").setAutoWidth(true);
         signIns.addColumn(key -> ViewSupport.utc(key.getExpiresAt())).setHeader("Ends by").setAutoWidth(true);
         signIns.addComponentColumn(key -> isThisSession(key)
                         ? new Span("This session")
                         : revokeButton(key, "Sign out", "Sign out session " + key.getPrefix()))
                 .setHeader("").setAutoWidth(true).setFlexGrow(0);
-        signIns.setItems(
-                query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                        (offset, limit) -> ViewSupport.orEmpty(client.getApiKeys(null, offset, limit, true).getApiKeys())))
-                        .stream(),
-                query -> Math.toIntExact(ViewSupport.unchecked(() -> client.getApiKeys(null, 0, 1, true).getTotal())));
+        final ListingProvider<ApiKey> sessionListing = ListingProvider.bind(signIns,
+                options -> apiKeys(client.getApiKeys(null, options.session(true))));
         signIns.setAllRowsVisible(true);
 
-        final VerticalLayout layout = new VerticalLayout(about, keys, new H3("Sign-in Sessions"),
+        final VerticalLayout layout = new VerticalLayout(about, keyListing.toolbar(keys, null, "key", "keys"), keys,
+                new H3("Sign-in Sessions"),
                 new Paragraph("Each sign-in, here or in another program that signs in through Philter, has its own "
                         + "session. Sign out a session you no longer use; to end this one, sign out of Philter UI."),
-                signIns);
+                sessionListing.toolbar(signIns, null, "session", "sessions"), signIns);
         layout.setSizeFull();
         return layout;
 
@@ -533,20 +532,18 @@ public class AccountView extends VerticalLayout {
     /** The webhook's delivery history, newest first, a page at a time. */
     private Component deliveriesSection() {
 
-        deliveries.addColumn(d -> ViewSupport.utc(d.getCreatedAtText())).setHeader("Queued").setAutoWidth(true);
+        deliveries.addColumn(d -> ViewSupport.utc(d.getCreatedAtText())).setHeader("Queued").setAutoWidth(true)
+                .setSortProperty("created");
         deliveries.addColumn(d -> eventLabel(d.getEvent())).setHeader("Event").setAutoWidth(true);
         deliveries.addColumn(WebhookDelivery::getDocumentId).setHeader("Document").setResizable(true);
         deliveries.addColumn(d -> statusLabel(d.getStatus())).setHeader("Status").setAutoWidth(true);
         deliveries.addColumn(WebhookDelivery::getAttempts).setHeader("Attempts").setAutoWidth(true);
         deliveries.addColumn(AccountView::lastError).setHeader("Last Error").setResizable(true);
         deliveries.addColumn(AccountView::nextAttempt).setHeader("Next Attempt").setAutoWidth(true);
-        deliveries.setItems(
-                query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                        (offset, limit) -> ViewSupport.orEmpty(
-                                client.getWebhookDeliveries(null, offset, limit).getDeliveries()))).stream(),
-                query -> (int) Math.min(Integer.MAX_VALUE,
-                        ViewSupport.unchecked(() -> client.getWebhookDeliveries(null, 0, 1)).getTotal()));
-        deliveries.setPageSize(Pages.MAX_LIMIT);
+        final ListingProvider<WebhookDelivery> listing = ListingProvider.bind(deliveries, options -> {
+            final GetWebhookDeliveriesResponse page = client.getWebhookDeliveries(null, options);
+            return new Listing<>(page.getDeliveries(), page.getTotal());
+        });
         deliveries.setMinHeight("250px");
         deliveries.setSizeFull();
 
@@ -559,11 +556,16 @@ public class AccountView extends VerticalLayout {
 
         final VerticalLayout section = new VerticalLayout(heading,
                 new Span("Each event Philter queued for your webhook, newest first, with how its delivery went. "
-                        + "Test events are not listed."), deliveries);
+                        + "Test events are not listed."), listing.toolbar(deliveries, null, "delivery", "deliveries"),
+                deliveries);
         section.setPadding(false);
         section.setSizeFull();
         return section;
 
+    }
+
+    private static Listing<ApiKey> apiKeys(final GetApiKeysResponse page) {
+        return new Listing<>(page.getApiKeys(), page.getTotal());
     }
 
     // Logic the tests cover.

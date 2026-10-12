@@ -22,7 +22,7 @@ import ai.philterd.philter.model.OwnedLegalHoldResponse;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.PhilterRules;
-import ai.philterd.ui.model.Pages;
+import ai.philterd.ui.model.Listing;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
@@ -73,22 +73,24 @@ public class HoldsView extends VerticalLayout {
 
         setSizeFull();
 
-        grid.addColumn(LegalHoldResponse::getReference).setHeader("Reference").setAutoWidth(true).setResizable(true);
+        grid.addColumn(LegalHoldResponse::getReference).setHeader("Reference").setAutoWidth(true).setResizable(true)
+                .setSortProperty("reference");
         grid.addColumn(hold -> scopeLabel(hold.getScopeType())).setHeader("Scope").setAutoWidth(true);
         grid.addColumn(LegalHoldResponse::getScopeValue).setHeader("Document or User").setAutoWidth(true).setResizable(true);
         grid.addColumn(LegalHoldResponse::getReason).setHeader("Reason").setFlexGrow(1).setResizable(true);
-        grid.addColumn(hold -> ViewSupport.utc(hold.getSetAt())).setHeader("Set At").setAutoWidth(true);
+        grid.addColumn(hold -> ViewSupport.utc(hold.getSetAt())).setHeader("Set At").setAutoWidth(true)
+                .setSortProperty("set");
         grid.addComponentColumn(hold -> releaseButton(hold, null)).setAutoWidth(true).setFlexGrow(0);
-        // Philter's listing has no total, so the grid pages until a page comes back short.
-        grid.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> ViewSupport.orEmpty(client.getHolds(null, offset, limit)))).stream());
+        final ListingProvider<LegalHoldResponse> listing = ListingProvider.bind(grid,
+                options -> Listing.of(client.listHolds(null, options)));
         grid.setSizeFull();
 
         final Span description = new Span("Legal holds block deletion and purge of redaction evidence until they are "
                 + "released. Every hold and release is audited. ");
         description.add(PhilterDocs.link("Learn more about legal holds.", "redaction/legal_holds.html"));
 
-        final VerticalLayout mine = new VerticalLayout(description, grid);
+        final VerticalLayout mine = new VerticalLayout(description,
+                listing.toolbar(grid, "Search by reference", "hold", "holds"), grid);
         mine.setSizeFull();
 
         final TabSheet tabs = new TabSheet();
@@ -110,19 +112,22 @@ public class HoldsView extends VerticalLayout {
     private VerticalLayout allHolds() {
 
         allGrid = new Grid<>();
-        allGrid.addColumn(LegalHoldResponse::getReference).setHeader("Reference").setAutoWidth(true).setResizable(true);
+        allGrid.addColumn(LegalHoldResponse::getReference).setHeader("Reference").setAutoWidth(true).setResizable(true)
+                .setSortProperty("reference");
         allGrid.addColumn(OwnedLegalHoldResponse::getOwner).setHeader("Owner").setAutoWidth(true).setResizable(true);
         allGrid.addColumn(hold -> scopeLabel(hold.getScopeType())).setHeader("Scope").setAutoWidth(true);
         allGrid.addColumn(LegalHoldResponse::getScopeValue).setHeader("Document or User").setAutoWidth(true).setResizable(true);
         allGrid.addColumn(LegalHoldResponse::getReason).setHeader("Reason").setFlexGrow(1).setResizable(true);
-        allGrid.addColumn(hold -> ViewSupport.utc(hold.getSetAt())).setHeader("Set At").setAutoWidth(true);
+        allGrid.addColumn(hold -> ViewSupport.utc(hold.getSetAt())).setHeader("Set At").setAutoWidth(true)
+                .setSortProperty("set");
         allGrid.addComponentColumn(hold -> releaseButton(hold, hold.getOwner())).setAutoWidth(true).setFlexGrow(0);
-        allGrid.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> ViewSupport.orEmpty(client.getHoldsAcrossUsers(offset, limit)))).stream());
+        final ListingProvider<OwnedLegalHoldResponse> listing = ListingProvider.bind(allGrid,
+                options -> Listing.of(client.listHoldsAcrossUsers(options)));
         allGrid.setSizeFull();
 
         final VerticalLayout layout = new VerticalLayout(
-                new Span("All legal holds across all users, including users who have been deactivated."), allGrid);
+                new Span("All legal holds across all users, including users who have been deactivated."),
+                listing.toolbar(allGrid, "Search by reference", "hold", "holds"), allGrid);
         layout.setSizeFull();
         return layout;
 

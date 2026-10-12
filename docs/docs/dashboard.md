@@ -6,11 +6,13 @@ Every page works through Philter's [API]({$ philter_docs }/api_and_sdks/api.html
 
 When an action on a page fails, the page shows Philter's explanation, or says that Philter could not be reached. If that happens while a page is opening, the page says so in place of its content, with **Try again** to reload it.
 
+Lists, such as your policies, contexts, or legal holds, are read from Philter a page at a time as you scroll, and each shows how many items there are. Most have a search field above them that Philter matches against the name (or, for legal holds, the reference, and for ledgers, the document ID or filename) as you type, ignoring case. A column whose header can be clicked to sort, such as a name or a date, is sorted by Philter across every page; other columns cannot be sorted.
+
 ## Testing Philter
 
 The **Dashboard** is the home page. It redacts text or a PDF with one of your policies so you can see what the policy finds, and tune it before deploying it.
 
-* Pick a **Policy**. The list holds your own policies; `default` is selected when you have one, or your only policy when you have just one.
+* Pick a **Policy**. The list holds your own policies, read from Philter as you scroll; type to search them by name. `default` is selected when you have one, or your only policy when you have just one.
 * **Text** redacts what you type or paste and shows the redacted text below it.
 * **PDF** takes one PDF and returns the redacted PDF to download, named after the upload with `-redacted.pdf` in place of `.pdf` and unusual characters replaced by underscores. The file must be a PDF, not only named like one. The page shows the largest PDF it accepts and refuses a larger one before uploading it: Philter's own limit, its `MAX_FILE_SIZE_BYTES` (10 MB by default), which Philter UI reads from Philter, or a smaller limit set with Philter UI's `MAX_PDF_BYTES`. If Philter refuses a document as too large, the page says so and names the limit. Philter UI holds the upload in memory and does not write it to disk. It waits up to `DOCUMENT_TIMEOUT_SECONDS` (default 300) for Philter to finish, and reports that Philter could not be reached if it takes longer; see [Running](index.md#running).
 
@@ -92,7 +94,7 @@ Administrators also see an **All Contexts** tab listing every user's contexts an
 * **Export** a chain as Philter's JSON export, for evidence or independent verification. The export includes the original redacted values, so store it securely, and the public keys the entries were signed with, so it can be verified on its own. Each export is recorded in Philter's audit log. If Philter cannot export a chain, for example one it could not check, the page shows Philter's reason.
 * **Delete** a completed document's chain, or **purge** your completed chains older than a number of days (90 unless you change it). These appear only for administrators, and only when Philter's `LEDGER_DELETION_ENABLED` is `true`; it is `false` by default. An active [legal hold]({$ philter_docs }/redaction/legal_holds.html) blocks the deletion, and the page shows Philter's message naming the holds. Any active hold on your evidence blocks a purge entirely.
 
-Administrators also see an **All Ledgers** tab listing every user's chains and their owners, including users who have been deactivated, with **View** for each, when Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` is `true`.
+Administrators also see an **All Ledgers** tab listing every user's chains and their owners, including users who have been deactivated, searchable by document ID or filename, with **View** for each, when Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` is `true`.
 
 ## Legal Holds
 
@@ -129,7 +131,7 @@ Philter UI checks your role with Philter each time you open a page, so a role an
 
 ### Users
 
-**Users** lists every user, including deactivated ones, with their username, email, role, **Status** (Active or Deactivated), **Password** (Set, Must change, or None (API keys only)), and **MFA** (On, Off, or Locked). **Password** is **Must change** after an administrator sets or resets it, and **None (API keys only)** for a user who never signs in.
+**Users** lists every user, including deactivated ones, a page at a time with the number that match. Search by username, and filter by **Role** and by **Status** (Active or Deactivated). Each row shows the username, email, role, **Status** (Active or Deactivated), **Password** (Set, Must change, or None (API keys only)), and **MFA** (On, Off, or Locked). **Password** is **Must change** after an administrator sets or resets it, and **None (API keys only)** for a user who never signs in.
 
 * **Add User** takes a username, an optional email address (one `@` with something on each side, a dot in the domain, no spaces, and at most 254 characters), a role (one of those Philter offers, by default `user` or `admin`), and an optional temporary password; **Generate** fills in a random one to copy. A user given a password must change it at first sign-in. Leave the password empty for a user who will use API keys only. Philter creates a default policy and context for the new user.
 

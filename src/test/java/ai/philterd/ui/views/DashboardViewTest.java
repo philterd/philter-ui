@@ -16,14 +16,16 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.ui.model.Listing;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DashboardViewTest {
 
@@ -93,6 +95,16 @@ class DashboardViewTest {
         assertTrue(DashboardView.isTooLarge(new ClientException("HTTP 413", 413, null)));
         assertFalse(DashboardView.isTooLarge(new ClientException("HTTP 400", 400, "Bad.", "invalid_request")));
         assertEquals("The PDF is too large. Philter accepts a PDF of at most 10 MB.", DashboardView.tooLarge(10 * MB));
+    }
+
+    @Test
+    void thePickerStartsOnTheDefaultPolicyOrTheOnlyOne() {
+        assertEquals("default", DashboardView.initialPolicy(new Listing<>(List.of("alpha"), 3), "default",
+                List.of("default", "default-copy")));
+        assertNull(DashboardView.initialPolicy(new Listing<>(List.of("alpha"), 3), "default", List.of("default-copy")));
+        assertEquals("claims", DashboardView.initialPolicy(new Listing<>(List.of("claims"), 1), "default", List.of()));
+        assertNull(DashboardView.initialPolicy(new Listing<>(List.of(), 0), "default", List.of()));
+        assertNull(DashboardView.initialPolicy(new Listing<>(List.of("alpha"), 2), null, List.of()));
     }
 
 }

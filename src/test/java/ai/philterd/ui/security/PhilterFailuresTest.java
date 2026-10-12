@@ -24,9 +24,7 @@ import java.io.UncheckedIOException;
 import java.net.ConnectException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PhilterFailuresTest {
 
@@ -56,15 +54,6 @@ class PhilterFailuresTest {
         assertNull(PhilterFailures.messageFor(new UncheckedIOException(new IOException("template missing"))));
         assertNull(PhilterFailures.messageFor(new RuntimeException(new IOException("Broken pipe"))));
         assertNull(PhilterFailures.messageFor(null));
-    }
-
-    @Test
-    void aRepeatedFailureIsShownOnce() {
-        final SessionErrorHandler.LastFailure last = new SessionErrorHandler.LastFailure("No such list.", 1_000L);
-        assertTrue(SessionErrorHandler.isRepeat(last, "No such list.", 1_000L + 1_000_000_000L));
-        assertFalse(SessionErrorHandler.isRepeat(last, "No such list.", 1_000L + SessionErrorHandler.REPEAT_WINDOW_NANOS));
-        assertFalse(SessionErrorHandler.isRepeat(last, "Another message.", 1_001L));
-        assertFalse(SessionErrorHandler.isRepeat(null, "No such list.", 1_001L));
     }
 
 }

@@ -21,7 +21,7 @@ import ai.philterd.philter.model.LedgerChain;
 import ai.philterd.philter.model.LedgerEntry;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
-import ai.philterd.ui.model.Pages;
+import ai.philterd.ui.model.Listing;
 import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
@@ -87,7 +87,6 @@ public class LedgerView extends VerticalLayout {
     private final Grid<LedgerEntry> grid = new Grid<>();
     private final Span count = new Span();
     private final boolean canDelete;
-    private String search;
 
     public LedgerView(final PhilterClients clients) {
 
@@ -101,8 +100,9 @@ public class LedgerView extends VerticalLayout {
         setSizeFull();
 
         grid.addColumn(LedgerEntry::getDocumentId).setHeader("Document ID").setResizable(true).setAutoWidth(true);
-        grid.addColumn(LedgerEntry::getFilename).setHeader("Filename").setResizable(true);
-        grid.addColumn(entry -> ViewSupport.utc(entry.getTimestamp())).setHeader("Created").setAutoWidth(true);
+        grid.addColumn(LedgerEntry::getFilename).setHeader("Filename").setResizable(true).setSortProperty("filename");
+        grid.addColumn(entry -> ViewSupport.utc(entry.getTimestamp())).setHeader("Created").setAutoWidth(true)
+                .setSortProperty("created");
         grid.addComponentColumn(LedgerView::readStatus).setHeader("Status").setAutoWidth(true).setFlexGrow(0);
         grid.addComponentColumn(entry -> ViewSupport.button("View", VaadinIcon.EYE,
                 "View ledger chain " + entry.getDocumentId(),
@@ -113,31 +113,14 @@ public class LedgerView extends VerticalLayout {
                     "Delete ledger chain " + entry.getDocumentId(), () -> openDelete(entry.getDocumentId())))
                     .setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
         }
-        grid.setItems(
-                query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                        (offset, limit) -> ViewSupport.orEmpty(
-                                client.listLedgerChains(blankToNull(search), null, offset, limit).getChains()))).stream(),
-                query -> {
-                    final int total = ViewSupport.unchecked(
-                            () -> client.listLedgerChains(blankToNull(search), null, 0, 1).getTotal());
-                    count.setText(countLabel(total, blankToNull(search) != null));
-                    return total;
-                });
+        final ListingProvider<LedgerEntry> listing = ListingProvider.bind(grid, options -> ledger(
+                client.listLedgerChains(null, options)));
         grid.setSizeFull();
 
-        final TextField searchField = new TextField();
-        searchField.setPlaceholder("Search by document ID or filename");
-        searchField.setClearButtonVisible(true);
+        final TextField searchField = listing.searchField(grid, "Search by document ID or filename");
         searchField.setWidth("320px");
-        searchField.addValueChangeListener(e -> {
-            search = e.getValue();
-            grid.getDataProvider().refreshAll();
-        });
-        final Button searchButton = new Button("Search", VaadinIcon.SEARCH.create(), e -> {
-            search = searchField.getValue();
-            grid.getDataProvider().refreshAll();
-        });
-        final HorizontalLayout searchRow = new HorizontalLayout(searchField, searchButton);
+        listing.onTotal(total -> count.setText(countLabel(total, !searchField.getValue().isBlank())));
+        final HorizontalLayout searchRow = new HorizontalLayout(searchField);
         searchRow.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.END);
         if (canDelete) {
             final Button purge = new Button("Purge old entries", VaadinIcon.TRASH.create(), e -> openPurge());
@@ -169,21 +152,20 @@ public class LedgerView extends VerticalLayout {
         final Grid<LedgerEntry> all = new Grid<>();
         all.addColumn(LedgerEntry::getDocumentId).setHeader("Document ID").setResizable(true).setAutoWidth(true);
         all.addColumn(LedgerEntry::getOwner).setHeader("Owner").setResizable(true);
-        all.addColumn(entry -> ViewSupport.utc(entry.getTimestamp())).setHeader("Created").setAutoWidth(true);
+        all.addColumn(entry -> ViewSupport.utc(entry.getTimestamp())).setHeader("Created").setAutoWidth(true)
+                .setSortProperty("created");
         all.addComponentColumn(LedgerView::readStatus).setHeader("Status").setAutoWidth(true).setFlexGrow(0);
         all.addComponentColumn(entry -> ViewSupport.button("View", VaadinIcon.EYE,
                 "View ledger chain " + entry.getDocumentId(),
                 () -> openChain(entry.getDocumentId(), entry.getOwner(), entry.getReadError())))
                 .setHeader("View").setAutoWidth(true).setFlexGrow(0);
-        all.setItems(
-                query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                        (offset, limit) -> ViewSupport.orEmpty(
-                                client.listLedgerChainsAcrossUsers(offset, limit).getChains()))).stream(),
-                query -> ViewSupport.unchecked(() -> client.listLedgerChainsAcrossUsers(0, 1).getTotal()));
+        final ListingProvider<LedgerEntry> listing = ListingProvider.bind(all, options -> ledger(
+                client.listLedgerChainsAcrossUsers(options)));
         all.setSizeFull();
 
         final VerticalLayout layout = new VerticalLayout(
-                new Span("All redaction ledger chains across all users, including users who have been deactivated."), all);
+                new Span("All redaction ledger chains across all users, including users who have been deactivated."),
+                listing.toolbar(all, "Search by document ID or filename", "chain", "chains"), all);
         layout.setSizeFull();
         return layout;
 
@@ -367,8 +349,12 @@ public class LedgerView extends VerticalLayout {
         return detail.length() == 0 ? "The chain does not verify." : detail.toString().trim();
     }
 
+    private static Listing<LedgerEntry> ledger(final GetLedgerResponse page) {
+        return new Listing<>(page.getChains(), page.getTotal());
+    }
+
     /** How many chains the list holds, worded for a search or for the whole ledger. */
-    static String countLabel(final int total, final boolean searching) {
+    static String countLabel(final long total, final boolean searching) {
         final String chains = total == 1 ? "1 chain" : total + " chains";
         return searching ? chains + " found." : chains + " in your ledger.";
     }
@@ -398,8 +384,5 @@ public class LedgerView extends VerticalLayout {
         return "ledger-" + documentId.replaceAll("[^A-Za-z0-9._-]", "_") + "-export.json";
     }
 
-    private static String blankToNull(final String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
 
 }

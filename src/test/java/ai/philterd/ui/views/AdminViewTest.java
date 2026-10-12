@@ -18,6 +18,7 @@ package ai.philterd.ui.views;
 import ai.philterd.philter.model.AdminSettings;
 import ai.philterd.philter.model.AuditEvent;
 import ai.philterd.philter.model.GetAuditLogResponse;
+import ai.philterd.philter.model.ListOptions;
 import ai.philterd.philter.model.UpdateAdminSettingsRequest;
 import ai.philterd.philter.model.User;
 import ai.philterd.philter.model.exceptions.ClientException;
@@ -297,6 +298,18 @@ class AdminViewTest {
         assertEquals(AdminView.UserField.PASSWORD, AdminView.refusedField("The password must be at least 16 characters."));
         assertEquals(AdminView.UserField.USERNAME, AdminView.refusedField("The username is taken."));
         assertEquals(AdminView.UserField.USERNAME, AdminView.refusedField(null));
+    }
+
+    @Test
+    void userFiltersMapToRoleAndActive() {
+        assertEquals(List.of("", "admin", "user"), AdminView.roleFilters(TestRules.defaults()));
+        final ListOptions all = AdminView.userFilters(new ListOptions(), "", AdminView.STATUS_FILTERS.get(0));
+        assertNull(all.getRole());
+        assertNull(all.getActive());
+        final ListOptions admins = AdminView.userFilters(new ListOptions(), "admin", "Active");
+        assertEquals("admin", admins.getRole());
+        assertEquals(Boolean.TRUE, admins.getActive());
+        assertEquals(Boolean.FALSE, AdminView.userFilters(new ListOptions(), null, "Deactivated").getActive());
     }
 
 }

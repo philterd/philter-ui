@@ -20,12 +20,14 @@ import ai.philterd.philter.model.AdminSettings;
 import ai.philterd.philter.model.AuditEvent;
 import ai.philterd.philter.model.AuditLogExport;
 import ai.philterd.philter.model.GetAuditLogResponse;
+import ai.philterd.philter.model.GetUsersResponse;
+import ai.philterd.philter.model.ListOptions;
 import ai.philterd.philter.model.SigningKey;
 import ai.philterd.philter.model.UpdateAdminSettingsRequest;
 import ai.philterd.philter.model.User;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
-import ai.philterd.ui.model.Pages;
+import ai.philterd.ui.model.Listing;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUnreachableException;
 import ai.philterd.ui.security.PhilterUser;
@@ -52,6 +54,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.tabs.TabSheet;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -117,20 +120,38 @@ public class AdminView extends VerticalLayout {
         final Button add = new Button("Add User", VaadinIcon.PLUS.create(), e -> openAddUser());
         add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        users.addColumn(User::getUsername).setHeader("Username").setAutoWidth(true);
+        users.addColumn(User::getUsername).setHeader("Username").setAutoWidth(true).setSortProperty("username");
         users.addColumn(u -> u.getEmail() == null ? "" : u.getEmail()).setHeader("Email").setAutoWidth(true);
         users.addColumn(User::getRole).setHeader("Role").setAutoWidth(true);
         users.addColumn(AdminView::status).setHeader("Status").setAutoWidth(true);
         users.addColumn(AdminView::passwordState).setHeader("Password").setAutoWidth(true);
         users.addColumn(AdminView::mfaState).setHeader("MFA").setAutoWidth(true);
         users.addComponentColumn(this::actions).setHeader("").setAutoWidth(true).setFlexGrow(0);
-        users.setItems(
-                query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                        (offset, limit) -> ViewSupport.orEmpty(client.getUsers(offset, limit).getUsers()))).stream(),
-                query -> Math.toIntExact(ViewSupport.unchecked(() -> client.getUsers(0, 1).getTotal())));
+        final Select<String> role = new Select<>();
+        role.setLabel("Role");
+        role.setItems(roleFilters(ViewSupport.rules(client)));
+        role.setItemLabelGenerator(r -> r.isEmpty() ? "All roles" : r);
+        role.setValue("");
+        final Select<String> status = new Select<>();
+        status.setLabel("Status");
+        status.setItems(STATUS_FILTERS);
+        status.setValue(STATUS_FILTERS.get(0));
+
+        final ListingProvider<User> listing = ListingProvider.bind(users, options -> {
+            final GetUsersResponse page = client.getUsers(userFilters(options, role.getValue(), status.getValue()));
+            return new Listing<>(page.getUsers(), page.getTotal());
+        });
+        role.addValueChangeListener(e -> users.getDataProvider().refreshAll());
+        status.addValueChangeListener(e -> users.getDataProvider().refreshAll());
         users.setSizeFull();
 
-        final VerticalLayout layout = new VerticalLayout(add, users);
+        final HorizontalLayout toolbar = listing.toolbar(users, "Search by username", "user", "users");
+        toolbar.addComponentAtIndex(1, role);
+        toolbar.addComponentAtIndex(2, status);
+        final HorizontalLayout top = new HorizontalLayout(add, toolbar);
+        top.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.BASELINE);
+
+        final VerticalLayout layout = new VerticalLayout(top, users);
         layout.setSizeFull();
         return layout;
 
@@ -616,7 +637,7 @@ public class AdminView extends VerticalLayout {
                 throw new PhilterUnreachableException(ex);
             }
         });
-        events.setPageSize(Pages.MAX_LIMIT);
+        events.setPageSize(Listing.MAX_LIMIT);
         events.setMinHeight("300px");
         events.setSizeFull();
 
@@ -722,6 +743,23 @@ public class AdminView extends VerticalLayout {
 
     // Logic the tests cover.
 
+    /** The status filter's choices, the first showing everyone. */
+    static final List<String> STATUS_FILTERS = List.of("All statuses", "Active", "Deactivated");
+
+    /** The role filter's choices: every role (empty) and then each role Philter has. */
+    static List<String> roleFilters(final PhilterRules rules) {
+        final List<String> choices = new ArrayList<>();
+        choices.add("");
+        choices.addAll(rules.roles());
+        return choices;
+    }
+
+    /** The users listing request with the role and status filters, either of which may show everyone. */
+    static ListOptions userFilters(final ListOptions options, final String role, final String status) {
+        return options.role(role == null || role.isEmpty() ? null : role)
+                .active("Active".equals(status) ? Boolean.TRUE : "Deactivated".equals(status) ? Boolean.FALSE : null);
+    }
+
     /** The longest email address Philter accepts. */
     static final int MAX_EMAIL_LENGTH = 254;
 
@@ -791,13 +829,11 @@ public class AdminView extends VerticalLayout {
     /** Reads the events from {@code offset}, in Philter-sized pages, with the total from the last page read. */
     static AuditPage readAudit(final AuditSource source, final AuditFilter filter, final int offset, final int limit)
             throws IOException {
-        final long[] total = {0};
-        final List<AuditEvent> events = Pages.read(offset, limit, (start, count) -> {
+        final Listing<AuditEvent> events = Listing.read(offset, limit, (start, count) -> {
             final GetAuditLogResponse page = source.read(filter, start, count);
-            total[0] = page.getTotal();
-            return ViewSupport.orEmpty(page.getEvents());
+            return new Listing<>(page.getEvents(), page.getTotal());
         });
-        return new AuditPage(events, total[0]);
+        return new AuditPage(events.items(), events.total());
     }
 
     /**

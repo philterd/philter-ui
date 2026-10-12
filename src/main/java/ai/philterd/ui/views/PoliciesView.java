@@ -17,12 +17,13 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.DeletedPolicy;
+import ai.philterd.philter.model.GetDeletedPoliciesResponse;
 import ai.philterd.philter.model.ManagedPolicySummary;
 import ai.philterd.philter.model.OwnedName;
 import ai.philterd.philter.model.PolicyDetails;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
-import ai.philterd.ui.model.Pages;
+import ai.philterd.ui.model.Listing;
 import ai.philterd.ui.model.PolicyJson;
 import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.security.PhilterClients;
@@ -78,7 +79,7 @@ public class PoliciesView extends VerticalLayout {
 
         setSizeFull();
 
-        grid.addColumn(name -> name).setHeader("Name").setResizable(true);
+        grid.addColumn(name -> name).setHeader("Name").setResizable(true).setSortProperty("name");
         grid.addComponentColumn(name -> ViewSupport.button("Edit", VaadinIcon.EDIT, "Edit policy " + name,
                 () -> openEdit(name))).setHeader("Edit").setAutoWidth(true).setFlexGrow(0);
         grid.addComponentColumn(name -> ViewSupport.button("Duplicate", VaadinIcon.COPY, "Duplicate policy " + name,
@@ -88,15 +89,15 @@ public class PoliciesView extends VerticalLayout {
         grid.addComponentColumn(name -> ViewSupport.button("History", VaadinIcon.CLOCK, "Version history of policy " + name,
                 () -> new PolicyHistoryDialog(client, name, false, this::refresh).open()))
                 .setHeader("History").setAutoWidth(true).setFlexGrow(0);
-        // Philter's listing has no total, so the grid pages until a page comes back short.
-        grid.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> ViewSupport.orEmpty(client.getPolicies(null, offset, limit)))).stream());
+        final ListingProvider<String> listing = ListingProvider.bind(grid,
+                options -> Listing.of(client.listPolicies(null, options)));
         grid.setSizeFull();
 
         final Span description = new Span("A redaction policy defines which types of sensitive information Philter "
                 + "detects and how each is redacted. ");
         description.add(PhilterDocs.link("Learn more about redaction policies.", "policies/filter_policies.html"));
-        final VerticalLayout mine = new VerticalLayout(description, grid);
+        final VerticalLayout mine = new VerticalLayout(description,
+                listing.toolbar(grid, "Search by name", "policy", "policies"), grid);
         mine.setSizeFull();
 
         final TabSheet tabs = new TabSheet();
@@ -136,7 +137,8 @@ public class PoliciesView extends VerticalLayout {
     private VerticalLayout managedPolicies() {
 
         final Grid<ManagedPolicySummary> managed = new Grid<>();
-        managed.addColumn(ManagedPolicySummary::getName).setHeader("Name").setResizable(true).setAutoWidth(true);
+        managed.addColumn(ManagedPolicySummary::getName).setHeader("Name").setResizable(true).setAutoWidth(true)
+                .setSortProperty("name");
         managed.addColumn(ManagedPolicySummary::getDescription).setHeader("Description").setResizable(true);
         managed.addComponentColumn(policy -> ViewSupport.button("View", VaadinIcon.FILE_TEXT,
                 "View managed policy " + policy.getName(), () -> openView(policy.getName(), null)))
@@ -146,13 +148,14 @@ public class PoliciesView extends VerticalLayout {
                 () -> openCopy(policy.getName(), "Create Policy", "Enter a name for your new policy, copied from "
                         + policy.getName() + ".")))
                 .setHeader("Create Policy").setAutoWidth(true).setFlexGrow(0);
-        managed.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> ViewSupport.orEmpty(client.listManagedPolicies(offset, limit)))).stream());
+        final ListingProvider<ManagedPolicySummary> listing = ListingProvider.bind(managed,
+                options -> Listing.of(client.listManagedPolicies(options)));
         managed.setSizeFull();
 
         final VerticalLayout layout = new VerticalLayout(new Span("Managed policies are ready-made policies for common "
                 + "needs. You can use them as any other policy, but not change or delete them; copy one to make "
-                + "your own version."), managed);
+                + "your own version."), listing.toolbar(managed, "Search by name", "managed policy", "managed policies"),
+                managed);
         layout.setSizeFull();
         return layout;
 
@@ -161,7 +164,7 @@ public class PoliciesView extends VerticalLayout {
     /** The person's deleted policies whose history Philter keeps: browse it, or restore one. */
     private VerticalLayout deletedPolicies() {
 
-        deleted.addColumn(DeletedPolicy::getName).setHeader("Name").setResizable(true);
+        deleted.addColumn(DeletedPolicy::getName).setHeader("Name").setResizable(true).setSortProperty("name");
         deleted.addColumn(DeletedPolicy::getLatestRevision).setHeader("Latest Revision").setAutoWidth(true).setFlexGrow(0);
         deleted.addColumn(PoliciesView::deletedAt).setHeader("Deleted").setAutoWidth(true);
         deleted.addColumn(PoliciesView::deletedBy).setHeader("Deleted By").setAutoWidth(true);
@@ -173,16 +176,15 @@ public class PoliciesView extends VerticalLayout {
                 "Restore " + policy.getName() + " as it was when it was deleted",
                 () -> PolicyHistoryDialog.openRestore(client, policy.getName(), policy.getLatestRevision(), this::refresh)))
                 .setHeader("Restore").setAutoWidth(true).setFlexGrow(0);
-        deleted.setItems(
-                query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                        (offset, limit) -> ViewSupport.orEmpty(
-                                client.getDeletedPolicies(null, offset, limit).getPolicies()))).stream(),
-                query -> (int) Math.min(Integer.MAX_VALUE,
-                        ViewSupport.unchecked(() -> client.getDeletedPolicies(null, 0, 1)).getTotal()));
+        final ListingProvider<DeletedPolicy> listing = ListingProvider.bind(deleted, options -> {
+            final GetDeletedPoliciesResponse page = client.getDeletedPolicies(null, options);
+            return new Listing<>(page.getPolicies(), page.getTotal());
+        });
         deleted.setSizeFull();
 
         final VerticalLayout layout = new VerticalLayout(new Span("Philter keeps a deleted policy's history. Browse "
-                + "it, or restore the policy from any of its revisions under the same name."), deleted);
+                + "it, or restore the policy from any of its revisions under the same name."),
+                listing.toolbar(deleted, "Search by name", "deleted policy", "deleted policies"), deleted);
         layout.setSizeFull();
         return layout;
 
@@ -201,18 +203,19 @@ public class PoliciesView extends VerticalLayout {
     private VerticalLayout allPolicies() {
 
         final Grid<OwnedName> all = new Grid<>();
-        all.addColumn(OwnedName::getName).setHeader("Policy").setResizable(true);
+        all.addColumn(OwnedName::getName).setHeader("Policy").setResizable(true).setSortProperty("name");
         all.addColumn(OwnedName::getOwner).setHeader("Owner").setResizable(true);
         all.addComponentColumn(policy -> ViewSupport.button("View", VaadinIcon.FILE_TEXT,
                 "View policy " + policy.getName() + " of " + policy.getOwner(),
                 () -> openView(policy.getName(), policy.getOwner())))
                 .setHeader("View").setAutoWidth(true).setFlexGrow(0);
-        all.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> ViewSupport.orEmpty(client.getPoliciesAcrossUsers(offset, limit)))).stream());
+        final ListingProvider<OwnedName> listing = ListingProvider.bind(all,
+                options -> Listing.of(client.listPoliciesAcrossUsers(options)));
         all.setSizeFull();
 
         final VerticalLayout layout = new VerticalLayout(
-                new Span("All policies across all users, including users who have been deactivated."), all);
+                new Span("All policies across all users, including users who have been deactivated."),
+                listing.toolbar(all, "Search by name", "policy", "policies"), all);
         layout.setSizeFull();
         return layout;
 

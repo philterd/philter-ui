@@ -18,11 +18,13 @@ package ai.philterd.ui.views;
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.ContextDetails;
 import ai.philterd.philter.model.DisambiguationScope;
+import ai.philterd.philter.model.GetContextsAcrossUsersResponse;
+import ai.philterd.philter.model.GetContextsResponse;
 import ai.philterd.philter.model.OwnedName;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.ContextCounts;
-import ai.philterd.ui.model.Pages;
+import ai.philterd.ui.model.Listing;
 import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
@@ -69,7 +71,7 @@ public class ContextsView extends VerticalLayout {
 
         setSizeFull();
 
-        grid.addColumn(name -> name).setHeader("Context").setResizable(true);
+        grid.addColumn(name -> name).setHeader("Context").setResizable(true).setSortProperty("name");
         grid.addComponentColumn(name -> ViewSupport.button("View", VaadinIcon.DOCTOR_BRIEFCASE, "View context " + name,
                 () -> openView(name, null))).setHeader("View").setAutoWidth(true).setFlexGrow(0);
         grid.addComponentColumn(name -> ViewSupport.button(null, VaadinIcon.EDIT, "Edit context " + name,
@@ -78,16 +80,18 @@ public class ContextsView extends VerticalLayout {
                 () -> openClear(name))).setHeader("Clear").setAutoWidth(true).setFlexGrow(0);
         grid.addComponentColumn(name -> ViewSupport.button(null, VaadinIcon.TRASH, "Delete context " + name,
                 () -> openDelete(name))).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
-        // Philter's listing has no total, so the grid pages until a page comes back short.
-        grid.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> ViewSupport.orEmpty(client.listContexts(null, offset, limit).getContexts()))).stream());
+        final ListingProvider<String> listing = ListingProvider.bind(grid, options -> {
+            final GetContextsResponse page = client.listContexts(null, options);
+            return new Listing<>(page.getContexts(), page.getTotal());
+        });
         grid.setSizeFull();
 
         final Span description = new Span("Contexts group documents during redaction and provide features such as "
                 + "referential integrity. ");
         description.add(PhilterDocs.link("Learn more about contexts.", "redaction/contexts.html"));
 
-        final VerticalLayout mine = new VerticalLayout(description, grid);
+        final VerticalLayout mine = new VerticalLayout(description,
+                listing.toolbar(grid, "Search by name", "context", "contexts"), grid);
         mine.setSizeFull();
 
         final TabSheet tabs = new TabSheet();
@@ -125,15 +129,18 @@ public class ContextsView extends VerticalLayout {
     private VerticalLayout allContexts() {
 
         final Grid<OwnedName> all = new Grid<>();
-        all.addColumn(OwnedName::getName).setHeader("Context").setResizable(true);
+        all.addColumn(OwnedName::getName).setHeader("Context").setResizable(true).setSortProperty("name");
         all.addColumn(OwnedName::getOwner).setHeader("Owner").setResizable(true);
         all.addComponentColumn(row -> ViewSupport.button("View", VaadinIcon.DOCTOR_BRIEFCASE, "View context " + row.getName(),
                 () -> openView(row.getName(), row.getOwner()))).setHeader("View").setAutoWidth(true).setFlexGrow(0);
-        all.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> ViewSupport.orEmpty(client.listContextsAcrossUsers(offset, limit).getContexts()))).stream());
+        final ListingProvider<OwnedName> listing = ListingProvider.bind(all, options -> {
+            final GetContextsAcrossUsersResponse page = client.listContextsAcrossUsers(options);
+            return new Listing<>(page.getContexts(), page.getTotal());
+        });
         all.setSizeFull();
 
-        final VerticalLayout layout = new VerticalLayout(new Span("All contexts across all users."), all);
+        final VerticalLayout layout = new VerticalLayout(new Span("All contexts across all users."),
+                listing.toolbar(all, "Search by name", "context", "contexts"), all);
         layout.setSizeFull();
         return layout;
 

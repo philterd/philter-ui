@@ -17,10 +17,13 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.ApiKey;
+import ai.philterd.philter.model.GetApiKeysResponse;
+import ai.philterd.philter.model.ListOptions;
+import ai.philterd.philter.model.Page;
 import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
-import ai.philterd.ui.model.Pages;
+import ai.philterd.ui.model.Listing;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
@@ -96,18 +99,25 @@ public class DashboardView extends VerticalLayout {
             add(notice);
         }
 
-        final List<String> policies = ViewSupport.unchecked(() -> Pages.read(0, Integer.MAX_VALUE,
-                (offset, limit) -> ViewSupport.orEmpty(client.getPolicies(null, offset, limit))));
-        policy.setItems(policies);
+        // The picker reads the person's policies a page at a time as they scroll or type, searching on Philter.
+        policy.setItems(query -> {
+            final String search = query.getFilter().filter(text -> !text.isBlank()).map(String::trim).orElse(null);
+            return ViewSupport.unchecked(() -> Listing.read(query.getOffset(), query.getLimit(), (start, count) ->
+                    Listing.of(client.listPolicies(null, new ListOptions().offset(start).limit(count).search(search)))))
+                    .items().stream();
+        });
         policy.setPlaceholder("Select a policy");
         policy.setWidth("400px");
         final String defaultPolicy = ViewSupport.rules(client).defaultPolicyName();
-        if (defaultPolicy != null && policies.contains(defaultPolicy)) {
-            policy.setValue(defaultPolicy);
-        } else if (policies.size() == 1) {
-            policy.setValue(policies.get(0));
+        final Listing<String> first = ViewSupport.unchecked(() ->
+                Listing.of(client.listPolicies(null, new ListOptions().limit(1))));
+        final String initial = initialPolicy(first, defaultPolicy, ViewSupport.unchecked(() -> defaultPolicy == null
+                ? Listing.<String>of(new Page<>(List.of(), 0))
+                : Listing.of(client.listPolicies(null, new ListOptions().search(defaultPolicy)))).items());
+        if (initial != null) {
+            policy.setValue(initial);
         }
-        policy.setHelperText(policies.isEmpty() ? "You have no policies. Create one on the Redaction Policies page."
+        policy.setHelperText(first.total() == 0 ? "You have no policies. Create one on the Redaction Policies page."
                 : null);
 
         final TabSheet tabs = new TabSheet();
@@ -121,9 +131,23 @@ public class DashboardView extends VerticalLayout {
     }
 
     private boolean hasBootstrapKey() {
-        return ViewSupport.unchecked(() -> Pages.read(0, Integer.MAX_VALUE,
-                        (offset, limit) -> ViewSupport.orEmpty(client.getApiKeys(null, offset, limit, false).getApiKeys())))
-                .stream().anyMatch(ApiKey::isBootstrap);
+        return ViewSupport.unchecked(() -> Listing.read(0, Integer.MAX_VALUE, (offset, limit) -> {
+            final GetApiKeysResponse page = client.getApiKeys(null, new ListOptions().offset(offset).limit(limit)
+                    .session(false));
+            return new Listing<>(page.getApiKeys(), page.getTotal());
+        })).items().stream().anyMatch(ApiKey::isBootstrap);
+    }
+
+    /**
+     * The policy the picker starts on: the default policy when the person has it, else their only policy, else
+     * none. {@code first} is the first of their policies, with the total; {@code matches} are those whose name
+     * contains the default policy's.
+     */
+    static String initialPolicy(final Listing<String> first, final String defaultPolicy, final List<String> matches) {
+        if (defaultPolicy != null && matches.contains(defaultPolicy)) {
+            return defaultPolicy;
+        }
+        return first.total() == 1 && !first.items().isEmpty() ? first.items().get(0) : null;
     }
 
     private Component textTab() {

@@ -22,7 +22,7 @@ import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.model.Lines;
-import ai.philterd.ui.model.Pages;
+import ai.philterd.ui.model.Listing;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
@@ -45,7 +45,6 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -56,8 +55,6 @@ import java.util.List;
 @PageTitle("Custom Lists | Philter UI")
 @RolesAllowed(Roles.USER)
 public class CustomListsView extends VerticalLayout {
-
-    /** Philter's limits on a list's items, checked here too so a mistake shows before the request. */
 
     /** Kept short because Philter takes the description in the query string. */
     static final int MAXIMUM_DESCRIPTION_LENGTH = 250;
@@ -72,22 +69,22 @@ public class CustomListsView extends VerticalLayout {
 
         setSizeFull();
 
-        grid.addColumn(CustomListSummary::getName).setHeader("Name").setResizable(true).setSortable(true)
-                .setComparator(Comparator.comparing(CustomListSummary::getName, String.CASE_INSENSITIVE_ORDER));
+        grid.addColumn(CustomListSummary::getName).setHeader("Name").setResizable(true).setSortProperty("name");
         grid.addColumn(CustomListSummary::getDescription).setHeader("Description").setResizable(true);
-        grid.addColumn(CustomListSummary::getSize).setHeader("Terms").setSortable(true)
-                .setComparator(Comparator.comparingInt(CustomListSummary::getSize)).setAutoWidth(true).setFlexGrow(0);
+        grid.addColumn(CustomListSummary::getSize).setHeader("Terms").setAutoWidth(true).setFlexGrow(0);
         grid.addComponentColumn(this::editButton).setHeader("Edit").setAutoWidth(true).setFlexGrow(0);
         grid.addComponentColumn(list -> ViewSupport.button(null, VaadinIcon.TRASH, "Delete custom list " + list.getName(),
                 () -> openDelete(list.getName()))).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
+        final ListingProvider<CustomListSummary> listing = ListingProvider.bind(grid,
+                options -> Listing.of(client.listCustomLists(null, options)));
         grid.setSizeFull();
-        refresh();
 
         final Span description = new Span("Custom lists can be referenced by policies to include a list of terms to "
                 + "always or never redact. ");
         description.add(PhilterDocs.link("Learn more about custom lists.", "redaction/custom_lists.html"));
 
-        final VerticalLayout mine = new VerticalLayout(description, grid);
+        final VerticalLayout mine = new VerticalLayout(description,
+                listing.toolbar(grid, "Search by name", "custom list", "custom lists"), grid);
         mine.setSizeFull();
 
         final TabSheet tabs = new TabSheet();
@@ -106,9 +103,8 @@ public class CustomListsView extends VerticalLayout {
 
     }
 
-    /** Philter returns all of a person's lists at once, so the grid holds them in memory and sorts them itself. */
     private void refresh() {
-        grid.setItems(ViewSupport.orEmpty(ViewSupport.unchecked(client::listCustomLists)));
+        grid.getDataProvider().refreshAll();
     }
 
     private Button editButton(final CustomListSummary list) {
@@ -126,16 +122,16 @@ public class CustomListsView extends VerticalLayout {
     private VerticalLayout allLists() {
 
         final Grid<CustomListSummary> all = new Grid<>();
-        all.addColumn(CustomListSummary::getName).setHeader("Custom List").setResizable(true);
+        all.addColumn(CustomListSummary::getName).setHeader("Custom List").setResizable(true).setSortProperty("name");
         all.addColumn(CustomListSummary::getDescription).setHeader("Description").setResizable(true);
         all.addColumn(CustomListSummary::getOwner).setHeader("Owner").setResizable(true);
         all.addColumn(CustomListSummary::getSize).setHeader("Terms").setAutoWidth(true).setFlexGrow(0);
-        // Philter's listing has no total, so the grid pages until a page comes back short.
-        all.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
-                (offset, limit) -> ViewSupport.orEmpty(client.listCustomListsAcrossUsers(offset, limit)))).stream());
+        final ListingProvider<CustomListSummary> listing = ListingProvider.bind(all,
+                options -> Listing.of(client.listCustomListsAcrossUsers(options)));
         all.setSizeFull();
 
-        final VerticalLayout layout = new VerticalLayout(new Span("All custom lists across all users."), all);
+        final VerticalLayout layout = new VerticalLayout(new Span("All custom lists across all users."),
+                listing.toolbar(all, "Search by name", "custom list", "custom lists"), all);
         layout.setSizeFull();
         return layout;
 
