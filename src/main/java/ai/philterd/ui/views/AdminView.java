@@ -73,7 +73,6 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -694,22 +693,11 @@ public class AdminView extends VerticalLayout {
                     Notifications.failure(problem);
                     return;
                 }
-                final List<String> pages = new ArrayList<>();
-                int fetched = 0;
-                boolean more = false;
-                String zone = null;
-                Integer offset = 0;
-                while (offset != null) {
-                    final AuditLogExport page = client.exportAuditLog(from.getValue(), to.getValue(), null, offset,
-                            rules.auditExportMaximumPageSize());
-                    pages.add(page.getCsv());
-                    fetched += page.getRows();
-                    zone = page.getTimeZone();
-                    final Integer next = page.isTruncated() ? page.getNextOffset() : null;
-                    more = next != null && next > offset;
-                    offset = more && fetched < MAX_AUDIT_EXPORT_EVENTS ? next : null;
-                }
-                final AuditCsv joined = joinCsvPages(pages);
+                final AuditExport read = readExport(cursor -> client.exportAuditLogAfter(from.getValue(),
+                        to.getValue(), null, cursor, rules.auditExportMaximumPageSize()), MAX_AUDIT_EXPORT_EVENTS);
+                final String zone = read.zone();
+                final boolean more = read.capped();
+                final AuditCsv joined = joinCsvPages(read.pages());
                 final int rows = joined.events();
                 final byte[] csv = joined.csv().getBytes(StandardCharsets.UTF_8);
                 final String name = "philter-audit-log-" + from.getValue() + "-to-" + to.getValue() + ".csv";
@@ -973,18 +961,48 @@ public class AdminView extends VerticalLayout {
         return null;
     }
 
+    /** Reads one page of an export, after the given cursor, or the first page for {@code null}. */
+    interface ExportSource {
+        AuditLogExport read(String cursor) throws IOException;
+    }
+
+    /** An export's pages, the time zone Philter read the days in, and whether it stopped at the cap with more to read. */
+    record AuditExport(List<String> pages, String zone, boolean capped) {
+    }
+
+    /**
+     * Reads an export by cursor: the first page without one, then each page after the previous page's next cursor,
+     * so each event in the range is read once even while events are recorded. Stops when a page is not truncated,
+     * has no next cursor, or {@code maxEvents} have been read.
+     */
+    static AuditExport readExport(final ExportSource source, final int maxEvents) throws IOException {
+        final List<String> pages = new ArrayList<>();
+        int fetched = 0;
+        String zone = null;
+        String cursor = null;
+        boolean capped = false;
+        do {
+            final AuditLogExport page = source.read(cursor);
+            pages.add(page.getCsv());
+            fetched += page.getRows();
+            zone = page.getTimeZone();
+            final String next = page.isTruncated() ? page.getNextCursor() : null;
+            capped = next != null && fetched >= maxEvents;
+            cursor = next != null && !capped ? next : null;
+        } while (cursor != null);
+        return new AuditExport(pages, zone, capped);
+    }
+
     /** An export joined into one CSV, and how many events it holds. */
     record AuditCsv(String csv, int events) {
     }
 
     /**
-     * Joins the pages of an export into one CSV with the first page's header. Each page records an export
-     * event that pushes older events down, so a page can repeat the end of the one before; a record already
-     * written is not written again.
+     * Joins the pages of an export into one CSV: the first page's header, then every record of every page. Paging
+     * by cursor returns each event once, so records that look the same are different events and are all kept.
      */
     static AuditCsv joinCsvPages(final List<String> pages) {
         final StringBuilder csv = new StringBuilder();
-        final Set<String> written = new HashSet<>();
         boolean header = false;
         int events = 0;
         for (final String page : pages) {
@@ -997,10 +1015,8 @@ public class AdminView extends VerticalLayout {
                 header = true;
             }
             for (final String record : records.subList(1, records.size())) {
-                if (written.add(record)) {
-                    csv.append(record).append('\n');
-                    events++;
-                }
+                csv.append(record).append('\n');
+                events++;
             }
         }
         return new AuditCsv(csv.toString(), events);

@@ -17,6 +17,7 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.AdminSettings;
 import ai.philterd.philter.model.AuditEvent;
+import ai.philterd.philter.model.AuditLogExport;
 import ai.philterd.philter.model.GetAuditLogResponse;
 import ai.philterd.philter.model.ListOptions;
 import ai.philterd.philter.model.UpdateAdminSettingsRequest;
@@ -26,6 +27,7 @@ import ai.philterd.ui.TestRules;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -143,11 +145,55 @@ class AdminViewTest {
     }
 
     @Test
-    void anEventRepeatedAcrossPagesIsWrittenOnce() {
-        // A new event pushed "b" from the end of the first page to the start of the second.
-        final AdminView.AuditCsv joined = AdminView.joinCsvPages(List.of("h\nnew\na\nb\n", "h\nb\nc\n"));
-        assertEquals("h\nnew\na\nb\nc\n", joined.csv());
+    void identicalRecordsOnDifferentPagesAreBothKept() {
+        // Paging by cursor returns each event once, so two records that look the same are two events.
+        final AdminView.AuditCsv joined = AdminView.joinCsvPages(List.of("h\na\nb\n", "h\nb\nc\n"));
+        assertEquals("h\na\nb\nb\nc\n", joined.csv());
         assertEquals(4, joined.events());
+    }
+
+    private static AuditLogExport exportPage(final String csv, final int rows, final String nextCursor) {
+        return new AuditLogExport(csv.getBytes(StandardCharsets.UTF_8), rows, nextCursor != null, null, nextCursor,
+                "UTC");
+    }
+
+    @Test
+    void theExportFollowsEachPagesNextCursor() throws IOException {
+        final List<String> cursors = new ArrayList<>();
+        final AdminView.AuditExport export = AdminView.readExport(cursor -> {
+            cursors.add(String.valueOf(cursor));
+            return switch (String.valueOf(cursor)) {
+                case "null" -> exportPage("h\na\nb\n", 2, "c1");
+                case "c1" -> exportPage("h\nc\nd\n", 2, "c2");
+                default -> exportPage("h\ne\n", 1, null);
+            };
+        }, 100);
+        assertEquals(List.of("null", "c1", "c2"), cursors);
+        assertEquals(3, export.pages().size());
+        assertEquals("UTC", export.zone());
+        assertFalse(export.capped());
+        final AdminView.AuditCsv joined = AdminView.joinCsvPages(export.pages());
+        assertEquals(5, joined.events());
+        assertEquals(joined.csv().split("\n").length - 1, joined.events());
+    }
+
+    @Test
+    void theExportStopsAtTheCapAndSaysSo() throws IOException {
+        final List<String> cursors = new ArrayList<>();
+        final AdminView.AuditExport export = AdminView.readExport(cursor -> {
+            cursors.add(String.valueOf(cursor));
+            return exportPage("h\na\nb\n", 2, "next-" + cursors.size());
+        }, 4);
+        assertEquals(List.of("null", "next-1"), cursors);
+        assertTrue(export.capped());
+    }
+
+    @Test
+    void aTruncatedPageWithoutACursorEndsTheExport() throws IOException {
+        final AdminView.AuditExport export = AdminView.readExport(cursor -> new AuditLogExport(
+                "h\na\n".getBytes(StandardCharsets.UTF_8), 1, true, null, null, "UTC"), 100);
+        assertEquals(1, export.pages().size());
+        assertFalse(export.capped());
     }
 
     @Test
@@ -155,7 +201,7 @@ class AdminViewTest {
         assertEquals(List.of("h", "1,\"two\nlines\",x", "2,\"say \"\"hi\"\"\",y"),
                 AdminView.csvRecords("h\n1,\"two\nlines\",x\n2,\"say \"\"hi\"\"\",y\n"));
         final AdminView.AuditCsv joined = AdminView.joinCsvPages(List.of("h\n1,\"two\nlines\",x\n",
-                "h\n1,\"two\nlines\",x\n2,y\n"));
+                "h\n2,y\n"));
         assertEquals("h\n1,\"two\nlines\",x\n2,y\n", joined.csv());
         assertEquals(2, joined.events());
     }
