@@ -71,8 +71,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
@@ -145,6 +147,7 @@ public class AdminView extends VerticalLayout {
 
         final MenuItem reset = items.addItem("Reset password", e -> openResetPassword(row));
         final MenuItem role = items.addItem("Set role", e -> openSetRole(row));
+        items.addItem("Edit email", e -> openEditEmail(row));
         final MenuItem signOut = items.addItem("Sign out everywhere", e -> confirm("Sign Out Everywhere",
                 "Sign " + row.getUsername() + " out of every session? Their API keys keep working.", "Sign out", false,
                 () -> {
@@ -221,9 +224,15 @@ public class AdminView extends VerticalLayout {
 
         final Button create = new Button("Add User", e -> {
             username.setInvalid(false);
+            email.setInvalid(false);
             password.setInvalid(false);
             if (username.getValue().isBlank()) {
                 invalid(username, "Enter a username.");
+                return;
+            }
+            final String emailProblem = emailProblem(email.getValue());
+            if (emailProblem != null) {
+                invalid(email, emailProblem);
                 return;
             }
             final String chosen = password.getValue().isEmpty() ? null : password.getValue();
@@ -238,7 +247,11 @@ public class AdminView extends VerticalLayout {
                 Notifications.success(username.getValue().trim() + " added.");
             } catch (final ClientException ex) {
                 final String message = messageOr(ex, "Philter did not add the user.");
-                invalid(message.toLowerCase().contains("password") ? password : username, message);
+                switch (refusedField(message)) {
+                    case PASSWORD -> invalid(password, message);
+                    case EMAIL -> invalid(email, message);
+                    default -> invalid(username, message);
+                }
             } catch (final IOException | ServiceUnavailableException ex) {
                 Notifications.failure(ex, "The user could not be added.");
             }
@@ -313,6 +326,46 @@ public class AdminView extends VerticalLayout {
                 invalid(role, messageOr(ex, "Philter did not change the role."));
             } catch (final IOException | ServiceUnavailableException ex) {
                 Notifications.failure(ex, "The role could not be changed.");
+            }
+        });
+        save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        dialog.getFooter().add(ViewSupport.cancel(dialog), save);
+        dialog.open();
+
+    }
+
+    private void openEditEmail(final User row) {
+
+        final TextField email = new TextField("Email");
+        email.setWidthFull();
+        email.setValue(row.getEmail() == null ? "" : row.getEmail());
+        email.setClearButtonVisible(true);
+        email.setHelperText("Leave empty to remove the address. It is not used to sign in.");
+
+        final Dialog dialog = new Dialog();
+        dialog.setWidth("450px");
+        dialog.add(new H3("Edit Email"), new Paragraph("Set, change, or remove the email address for "
+                + row.getUsername() + "."), email);
+
+        final Button save = new Button("Save", e -> {
+            email.setInvalid(false);
+            if (Objects.equals(blankToNull(email.getValue()), blankToNull(row.getEmail()))) {
+                dialog.close();
+                return;
+            }
+            try {
+                final String problem = saveEmail(client::setUserEmail, row.getUsername(), email.getValue());
+                if (problem != null) {
+                    invalid(email, problem);
+                    return;
+                }
+                dialog.close();
+                users.getDataProvider().refreshAll();
+                Notifications.success(blankToNull(email.getValue()) == null
+                        ? "Email removed for " + row.getUsername() + "."
+                        : "Email changed for " + row.getUsername() + ".");
+            } catch (final ClientException | ServiceUnavailableException | IOException ex) {
+                Notifications.failure(ex, "The email address could not be changed.");
             }
         });
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -668,6 +721,68 @@ public class AdminView extends VerticalLayout {
     }
 
     // Logic the tests cover.
+
+    /** The longest email address Philter accepts. */
+    static final int MAX_EMAIL_LENGTH = 254;
+
+    /** Philter's email rule: one {@code @}, something on each side, a dot in the domain, and no whitespace. */
+    private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+
+    /**
+     * What is wrong with an email address under Philter's rule, or {@code null} if it is blank (no address) or
+     * meets it: one {@code @} with something on each side, a dot in the domain, no whitespace, and at most
+     * {@link #MAX_EMAIL_LENGTH} characters after trimming. Philter checks it again.
+     */
+    static String emailProblem(final String email) {
+        final String value = blankToNull(email);
+        if (value == null) {
+            return null;
+        }
+        if (value.length() > MAX_EMAIL_LENGTH) {
+            return "The email address must be at most " + MAX_EMAIL_LENGTH + " characters.";
+        }
+        return EMAIL.matcher(value).matches() ? null : "The email address is not valid.";
+    }
+
+    /** Sets a user's email address in Philter, so a change can be tested without Philter. */
+    interface EmailSetter {
+        User set(String username, String email) throws IOException;
+    }
+
+    /**
+     * Sets, changes, or (when blank) removes a user's email address. Returns why it was refused, by this check or
+     * Philter's, or {@code null} once it is saved.
+     */
+    static String saveEmail(final EmailSetter setter, final String username, final String email) throws IOException {
+        final String problem = emailProblem(email);
+        if (problem != null) {
+            return problem;
+        }
+        try {
+            setter.set(username, blankToNull(email));
+            return null;
+        } catch (final ClientException e) {
+            if (e.getStatusCode() != 400) {
+                throw e;
+            }
+            return messageOr(e, "Philter did not accept the email address.");
+        }
+    }
+
+    /** The New User fields a refusal from Philter can be about. */
+    enum UserField { USERNAME, EMAIL, PASSWORD }
+
+    /** Which field Philter's refusal to create a user is about, from its message. */
+    static UserField refusedField(final String message) {
+        final String lower = message == null ? "" : message.toLowerCase(Locale.ROOT);
+        if (lower.contains("password")) {
+            return UserField.PASSWORD;
+        }
+        if (lower.contains("email")) {
+            return UserField.EMAIL;
+        }
+        return UserField.USERNAME;
+    }
 
     /** A range of the audit log and how many events match the filters across every page. */
     record AuditPage(List<AuditEvent> events, long total) {

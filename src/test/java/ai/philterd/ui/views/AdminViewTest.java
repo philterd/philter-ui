@@ -20,6 +20,7 @@ import ai.philterd.philter.model.AuditEvent;
 import ai.philterd.philter.model.GetAuditLogResponse;
 import ai.philterd.philter.model.UpdateAdminSettingsRequest;
 import ai.philterd.philter.model.User;
+import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.ui.TestRules;
 import org.junit.jupiter.api.Test;
 
@@ -35,6 +36,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AdminViewTest {
@@ -242,6 +244,59 @@ class AdminViewTest {
         assertEquals(230, page.total());
         assertEquals("230 events", AdminView.auditTotal(page.total()));
         assertEquals("1 event", AdminView.auditTotal(1));
+    }
+
+    @Test
+    void emailAddressesFollowPhiltersRule() {
+        assertNull(AdminView.emailProblem("jordan@example.com"));
+        assertNull(AdminView.emailProblem("  jordan@example.com  "));
+        assertNull(AdminView.emailProblem(""));
+        assertNull(AdminView.emailProblem(null));
+        assertEquals("The email address is not valid.", AdminView.emailProblem("jordan"));
+        assertEquals("The email address is not valid.", AdminView.emailProblem("jordan@example"));
+        assertEquals("The email address is not valid.", AdminView.emailProblem("jordan@@example.com"));
+        assertEquals("The email address is not valid.", AdminView.emailProblem("jor dan@example.com"));
+        assertEquals("The email address is not valid.", AdminView.emailProblem("jordan@example."));
+        assertEquals("The email address must be at most 254 characters.",
+                AdminView.emailProblem("j@" + "x".repeat(250) + ".com"));
+    }
+
+    @Test
+    void anEmailIsChangedOrRemoved() throws IOException {
+        final List<String> sent = new ArrayList<>();
+        final AdminView.EmailSetter setter = (username, email) -> {
+            sent.add(username + "=" + email);
+            return new User();
+        };
+        assertNull(AdminView.saveEmail(setter, "jordan", " jordan@example.com "));
+        assertNull(AdminView.saveEmail(setter, "jordan", "  "));
+        assertEquals(List.of("jordan=jordan@example.com", "jordan=null"), sent);
+    }
+
+    @Test
+    void aRefusedEmailLeavesTheUserUnchanged() throws IOException {
+        final List<String> sent = new ArrayList<>();
+        assertEquals("The email address is not valid.", AdminView.saveEmail((u, e) -> {
+            sent.add(e);
+            return new User();
+        }, "jordan", "not-an-address"));
+        assertEquals(List.of(), sent);
+
+        // Philter's own refusal is shown as it gives it.
+        assertEquals("That domain is not allowed.", AdminView.saveEmail((u, e) -> {
+            throw new ClientException("HTTP 400", 400, "That domain is not allowed.");
+        }, "jordan", "jordan@example.com"));
+        assertThrows(ClientException.class, () -> AdminView.saveEmail((u, e) -> {
+            throw new ClientException("HTTP 404", 404, "No such user.");
+        }, "gone", "jordan@example.com"));
+    }
+
+    @Test
+    void aRefusalToCreateAUserIsShownOnItsField() {
+        assertEquals(AdminView.UserField.EMAIL, AdminView.refusedField("The email address is not valid."));
+        assertEquals(AdminView.UserField.PASSWORD, AdminView.refusedField("The password must be at least 16 characters."));
+        assertEquals(AdminView.UserField.USERNAME, AdminView.refusedField("The username is taken."));
+        assertEquals(AdminView.UserField.USERNAME, AdminView.refusedField(null));
     }
 
 }

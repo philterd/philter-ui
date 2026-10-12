@@ -131,12 +131,13 @@ Philter UI checks your role with Philter each time you open a page, so a role an
 
 **Users** lists every user, including deactivated ones, with their username, email, role, **Status** (Active or Deactivated), **Password** (Set, Must change, or None (API keys only)), and **MFA** (On, Off, or Locked). **Password** is **Must change** after an administrator sets or resets it, and **None (API keys only)** for a user who never signs in.
 
-* **Add User** takes a username, an optional email address, a role (one of those Philter offers, by default `user` or `admin`), and an optional temporary password; **Generate** fills in a random one to copy. A user given a password must change it at first sign-in. Leave the password empty for a user who will use API keys only. Philter creates a default policy and context for the new user.
+* **Add User** takes a username, an optional email address (one `@` with something on each side, a dot in the domain, no spaces, and at most 254 characters), a role (one of those Philter offers, by default `user` or `admin`), and an optional temporary password; **Generate** fills in a random one to copy. A user given a password must change it at first sign-in. Leave the password empty for a user who will use API keys only. Philter creates a default policy and context for the new user.
 
 Each user's actions menu has:
 
 * **Reset password**: sets a temporary password. The user's sign-in sessions end and they must choose a new password at their next sign-in; their API keys keep working. See [password requirements](sign_in.md#password-requirements).
-* **Set role** to one of the roles Philter offers. Philter refuses to demote the last active administrator.
+* **Set role** to one of the roles Philter offers.
+* **Edit email** sets, changes, or removes a user's email address; leave the field empty to remove it. The address is not used to sign in, so changing it changes nothing else. Philter refuses an address that does not follow the rule above, and the user is left unchanged. Philter refuses to demote the last active administrator.
 * **Sign out everywhere**: ends every sign-in session the user has. Their API keys keep working.
 * **Unlock MFA** for a user locked out after too many wrong codes. Their enrollment is unchanged.
 * **Disable MFA** for a user who has lost their authenticator. They set MFA up again at their next sign-in if it is required, and otherwise sign in with their password alone until they do. See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
