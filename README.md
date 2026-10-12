@@ -30,8 +30,12 @@ java -jar target/philter-ui-4.0.0-SNAPSHOT.jar
 | `DOCUMENT_TIMEOUT_SECONDS` | Seconds to wait for Philter to redact a PDF on the Dashboard. | `300` |
 | `MAX_PDF_BYTES` | The largest PDF the Dashboard accepts, in bytes. `0` follows Philter's own limit (its `MAX_FILE_SIZE_BYTES`, read from Philter); a smaller value lowers it, for example to limit the memory an upload uses. When Philter's limits cannot be read, this value or 10 MB is used. | `0` |
 | `TRUSTED_PROXIES` | Reverse proxies in front of Philter UI (IP addresses and CIDR ranges), whose `X-Forwarded-For` is believed when passing a person's address to Philter with each request. | None |
+| `PHILTER_CLIENT_CERTIFICATE` | A PKCS12 or JKS keystore holding the client certificate and private key Philter UI presents to Philter, for a Philter that requires one (mutual TLS). | None |
+| `PHILTER_CLIENT_CERTIFICATE_PASSWORD` | The password of `PHILTER_CLIENT_CERTIFICATE`, which its private key must also use. Required with `PHILTER_CLIENT_CERTIFICATE`. | None |
+| `PHILTER_TRUST_STORE` | A PKCS12 or JKS trust store holding the certificates Philter UI trusts for Philter, in place of the JVM's defaults. Build it with `keytool -importcert`. | None |
+| `PHILTER_TRUST_STORE_PASSWORD` | The password of `PHILTER_TRUST_STORE`. A PKCS12 trust store needs it. | None |
 
-Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Philter UI verifies Philter's TLS certificate, so a Philter with a self-signed certificate needs that certificate in a truststore passed with `-Djavax.net.ssl.trustStore=<path>`. See the [user guide](docs/docs/index.md).
+Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Philter UI verifies Philter's TLS certificate and host name, so a Philter with a self-signed certificate or one from a private certificate authority needs that certificate in `PHILTER_TRUST_STORE`. For a Philter behind a load balancer or service mesh that requires a client certificate, set `PHILTER_CLIENT_CERTIFICATE`. See the [user guide](docs/docs/index.md#client-certificates-and-trust-stores).
 
 ### Docker Compose
 

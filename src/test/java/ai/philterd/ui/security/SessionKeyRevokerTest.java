@@ -59,7 +59,7 @@ class SessionKeyRevokerTest {
     void aPersonsRequestsCarryTheirAddress() throws Exception {
         try (FakePhilter philter = new FakePhilter()) {
             final PhilterClients clients = new PhilterClients(philter.url(),
-                    PhilterClients.DEFAULT_DOCUMENT_TIMEOUT_SECONDS, new ClientAddresses("10.0.0.0/8"));
+                    PhilterClients.DEFAULT_DOCUMENT_TIMEOUT_SECONDS, new ClientAddresses("10.0.0.0/8"), null);
             final PhilterUser user = new PhilterUser("jordan", false, PhilterUser.Restriction.NONE, "sk_jordan", "id-jordan");
 
             // Through a trusted proxy, from 203.0.113.7, and then from 198.51.100.4 with the same client.
