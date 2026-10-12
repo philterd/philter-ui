@@ -73,6 +73,25 @@ class PhilterAuthenticationProviderTest {
     }
 
     @Test
+    void theBrowsersUserAgentGoesToPhilterAtBothSteps() throws Exception {
+        final String firefox = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0";
+        final MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("User-Agent", firefox);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        signIn("jordan");
+        signIns.completeSignIn(new PendingMfa("mfa", "challenge-1"), "123456");
+
+        assertEquals(java.util.List.of(firefox, firefox), philter.userAgents);
+    }
+
+    @Test
+    void withoutABrowserUserAgentPhilterUisOwnIsSent() {
+        signIn("jordan");
+        assertTrue(philter.userAgents.get(0).startsWith("Java-http-client/"), philter.userAgents.get(0));
+    }
+
+    @Test
     void outsideARequestNoAddressIsSent() {
         signIn("jordan");
         assertEquals(java.util.List.of("none"), philter.forwardedFor);

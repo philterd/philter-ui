@@ -31,7 +31,8 @@ import java.util.regex.Pattern;
 
 /**
  * The address of the person's browser, which Philter UI passes to Philter with each request so that Philter
- * rate-limits sign-ins and audits each person by their own address rather than all of them by Philter UI's.
+ * rate-limits sign-ins and audits each person by their own address rather than all of them by Philter UI's,
+ * and the browser's user agent, which Philter UI passes when it signs the person in.
  *
  * <p>It is the address of the connection to Philter UI, unless that connection comes from a proxy listed in
  * {@code TRUSTED_PROXIES}. Then {@code X-Forwarded-For} is read from the right, skipping trusted proxies,
@@ -69,6 +70,16 @@ public class ClientAddresses {
             return null;
         }
         return resolve(request.getRemoteAddr(), Collections.list(request.getHeaders("X-Forwarded-For")));
+    }
+
+    /**
+     * The user agent of the browser making the current request, or {@code null} outside a request or when it sent
+     * none. Philter records it with the session key a sign-in issues, so a person can tell their sessions apart; it
+     * describes the browser and proves nothing, so it is not checked here.
+     */
+    public String currentUserAgent() {
+        final HttpServletRequest request = currentRequest();
+        return request == null ? null : request.getHeader("User-Agent");
     }
 
     /**

@@ -46,11 +46,13 @@ public class SignIns {
 
     /**
      * Completes a sign-in for a user enrolled in MFA, with a code from their authenticator app. The browser's
-     * address goes to Philter, which rate-limits and audits the attempt by it.
+     * address goes to Philter, which rate-limits and audits the attempt by it, and so does its user agent, which
+     * Philter records with the session key this step issues.
      */
     public Authentication completeSignIn(final PendingMfa pending, final String code) throws IOException {
         return toAuthentication(pending.getUsername(),
-                clients.anonymous().completeSignIn(pending.challenge(), code, addresses.current()));
+                clients.anonymous().completeSignIn(pending.challenge(), code, addresses.current(),
+                        addresses.currentUserAgent()));
     }
 
     /**

@@ -34,6 +34,8 @@ final class FakePhilter implements AutoCloseable {
     final List<String> revokedKeys = new CopyOnWriteArrayList<>();
     /** The X-Forwarded-For of each sign-in request, or "none". */
     final List<String> forwardedFor = new CopyOnWriteArrayList<>();
+    /** The User-Agent of each sign-in request. */
+    final List<String> userAgents = new CopyOnWriteArrayList<>();
     /** The path and X-Forwarded-For of each request made with a session key, as "path xff" or "path none". */
     final List<String> sessionRequests = new CopyOnWriteArrayList<>();
     private final HttpServer server;
@@ -54,6 +56,7 @@ final class FakePhilter implements AutoCloseable {
         final String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         final String forwarded = exchange.getRequestHeaders().getFirst("X-Forwarded-For");
         forwardedFor.add(forwarded == null ? "none" : forwarded);
+        userAgents.add(String.valueOf(exchange.getRequestHeaders().getFirst("User-Agent")));
         if (exchange.getRequestURI().getPath().endsWith("/mfa")) {
             final String code = JsonParser.parseString(body).getAsJsonObject().get("code").getAsString();
             if ("123456".equals(code)) {
