@@ -16,6 +16,7 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
+import ai.philterd.philter.model.DeletedPolicy;
 import ai.philterd.philter.model.ManagedPolicySummary;
 import ai.philterd.philter.model.OwnedName;
 import ai.philterd.philter.model.PolicyDetails;
@@ -60,14 +61,12 @@ import java.nio.charset.StandardCharsets;
 @RolesAllowed(Roles.USER)
 public class PoliciesView extends VerticalLayout {
 
-    /** Philter's limits on a policy's description and notes. */
-
     static final String POLICY_EDITOR = "https://policies.philterd.ai/";
 
-    /** The policy every user has, which Philter does not let anyone delete. */
     private final transient PhilterClient client;
     private final PhilterRules rules;
     private final Grid<String> grid = new Grid<>();
+    private final Grid<DeletedPolicy> deleted = new Grid<>();
     private final String policyEditorUrl;
 
     public PoliciesView(final PhilterClients clients) {
@@ -87,7 +86,7 @@ public class PoliciesView extends VerticalLayout {
                 .setHeader("Duplicate").setAutoWidth(true).setFlexGrow(0);
         grid.addComponentColumn(this::deleteButton).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
         grid.addComponentColumn(name -> ViewSupport.button("History", VaadinIcon.CLOCK, "Version history of policy " + name,
-                () -> new PolicyHistoryDialog(client, name, this::refresh).open()))
+                () -> new PolicyHistoryDialog(client, name, false, this::refresh).open()))
                 .setHeader("History").setAutoWidth(true).setFlexGrow(0);
         // Philter's listing has no total, so the grid pages until a page comes back short.
         grid.setItems(query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
@@ -103,6 +102,7 @@ public class PoliciesView extends VerticalLayout {
         final TabSheet tabs = new TabSheet();
         tabs.add("My Policies", mine);
         tabs.add("Managed Policies", managedPolicies());
+        tabs.add("Deleted Policies", deletedPolicies());
         if (ViewSupport.showAllUsers(client)) {
             tabs.add("All Policies", allPolicies());
         }
@@ -119,6 +119,7 @@ public class PoliciesView extends VerticalLayout {
 
     private void refresh() {
         grid.getDataProvider().refreshAll();
+        deleted.getDataProvider().refreshAll();
     }
 
     private Button deleteButton(final String name) {
@@ -155,6 +156,46 @@ public class PoliciesView extends VerticalLayout {
         layout.setSizeFull();
         return layout;
 
+    }
+
+    /** The person's deleted policies whose history Philter keeps: browse it, or restore one. */
+    private VerticalLayout deletedPolicies() {
+
+        deleted.addColumn(DeletedPolicy::getName).setHeader("Name").setResizable(true);
+        deleted.addColumn(DeletedPolicy::getLatestRevision).setHeader("Latest Revision").setAutoWidth(true).setFlexGrow(0);
+        deleted.addColumn(PoliciesView::deletedAt).setHeader("Deleted").setAutoWidth(true);
+        deleted.addColumn(PoliciesView::deletedBy).setHeader("Deleted By").setAutoWidth(true);
+        deleted.addComponentColumn(policy -> ViewSupport.button("History", VaadinIcon.CLOCK,
+                "Version history of deleted policy " + policy.getName(),
+                () -> new PolicyHistoryDialog(client, policy.getName(), true, this::refresh).open()))
+                .setHeader("History").setAutoWidth(true).setFlexGrow(0);
+        deleted.addComponentColumn(policy -> ViewSupport.button("Restore", VaadinIcon.ARROW_BACKWARD,
+                "Restore " + policy.getName() + " as it was when it was deleted",
+                () -> PolicyHistoryDialog.openRestore(client, policy.getName(), policy.getLatestRevision(), this::refresh)))
+                .setHeader("Restore").setAutoWidth(true).setFlexGrow(0);
+        deleted.setItems(
+                query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
+                        (offset, limit) -> ViewSupport.orEmpty(
+                                client.getDeletedPolicies(null, offset, limit).getPolicies()))).stream(),
+                query -> (int) Math.min(Integer.MAX_VALUE,
+                        ViewSupport.unchecked(() -> client.getDeletedPolicies(null, 0, 1)).getTotal()));
+        deleted.setSizeFull();
+
+        final VerticalLayout layout = new VerticalLayout(new Span("Philter keeps a deleted policy's history. Browse "
+                + "it, or restore the policy from any of its revisions under the same name."), deleted);
+        layout.setSizeFull();
+        return layout;
+
+    }
+
+    /** When a policy was deleted, in UTC, or blank when Philter did not record it. */
+    static String deletedAt(final DeletedPolicy policy) {
+        return ViewSupport.utc(policy.getDeletedAtText());
+    }
+
+    /** Who deleted a policy, or blank when Philter did not record it. */
+    static String deletedBy(final DeletedPolicy policy) {
+        return policy.getDeletedBy() == null ? "" : policy.getDeletedBy();
     }
 
     private VerticalLayout allPolicies() {

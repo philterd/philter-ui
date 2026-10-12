@@ -25,10 +25,15 @@ If your bootstrap API key from `PHILTER_BOOTSTRAP_API_KEY` is still active, the 
 * **Edit** a policy's JSON, description, and notes. Build a policy in the [policy editor](https://policies.philterd.ai/) and paste its JSON in, or edit the JSON directly. Philter validates the policy when it is saved and the page shows its reason if it refuses. Saving changed JSON creates a new revision; changing only the description or notes does not. The description and notes can be as long as Philter allows (by default 200 and 1000 characters).
 * **Create** a policy with **New Policy**, starting from Philter's `default` [policy template]({$ philter_docs }/api_and_sdks/api/policies_api.html#get-a-policy-template), read from Philter when the editor opens, so it follows the policy schema Philter runs. If Philter cannot return the template, the editor opens with an empty policy and says so. Policy names are unique per user and follow Philter's naming rule, shown under the name field: by default up to 50 letters, digits, dashes, and underscores, not starting with `managed_`.
 * **Duplicate** a policy under a new name.
-* **Delete** a policy. Philter keeps its version history, which Philter's API can still read; Philter UI shows history only for existing policies. The `default` policy cannot be deleted.
-* **See a policy's history**: view its most recent revisions, as many as Philter returns in one page (100 by default), compare two revisions with each change's value before and after, or roll back to an earlier revision. A rollback saves the earlier content as a new revision; no revision is removed.
+* **Delete** a policy. Philter keeps its version history, and the policy appears on the **Deleted Policies** tab. The `default` policy cannot be deleted.
+* **See a policy's history**: view its most recent revisions, as many as Philter returns in one page (100 by default), with when each was captured and its **Author**, the user who made it (blank when Philter does not know), compare two revisions with each change's value before and after, or roll back to an earlier revision. A rollback saves the earlier content as a new revision; no revision is removed.
 
 Terms that are always or never redacted across all of your policies are on the [Always/Never Redact Lists](#alwaysnever-redact-lists) page.
+
+The **Deleted Policies** tab lists your deleted policies whose history Philter keeps, with each one's latest revision, when it was deleted, and who deleted it. **Deleted** and **Deleted By** are blank for a deletion Philter did not record. For each you can:
+
+* **See its history**: view and compare its revisions, as for a live policy. A deleted policy cannot be rolled back.
+* **Restore** it, as it was when it was deleted, or from any revision in its history. The revision is saved as your policy under the same name at a new revision, its history continues, and it leaves the **Deleted Policies** tab. Philter refuses while you have another policy with that name.
 
 The **Managed Policies** tab lists Philter's ready-made policies, such as common PII, financial PII, and healthcare PHI, with their descriptions. You can view them and create your own policy from one; managed policies themselves cannot be changed or deleted.
 

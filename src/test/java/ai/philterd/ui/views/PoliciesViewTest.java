@@ -15,12 +15,16 @@
  */
 package ai.philterd.ui.views;
 
+import ai.philterd.philter.model.DeletedPolicy;
+import ai.philterd.philter.model.PolicyVersionSummary;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.PolicyJson;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -95,6 +99,58 @@ class PoliciesViewTest {
             assertEquals(PolicyJson.EMPTY, start.json());
             assertEquals(PoliciesView.TEMPLATE_UNAVAILABLE, start.problem());
         }
+    }
+
+    @Test
+    void deletedPoliciesShowWhenAndByWhomOrBlank() {
+        final DeletedPolicy recorded = new DeletedPolicy();
+        recorded.setName("claims-2025");
+        recorded.setLatestRevision(4);
+        recorded.setDeletedAt("2026-10-02T09:30:00Z");
+        recorded.setDeletedBy("jordan");
+        assertEquals("2026-10-02 09:30 UTC", PoliciesView.deletedAt(recorded));
+        assertEquals("jordan", PoliciesView.deletedBy(recorded));
+
+        // A deletion made before Philter recorded deletions has neither.
+        final DeletedPolicy unrecorded = new DeletedPolicy();
+        unrecorded.setName("old");
+        assertEquals("", PoliciesView.deletedAt(unrecorded));
+        assertEquals("", PoliciesView.deletedBy(unrecorded));
+    }
+
+    @Test
+    void restoringSavesTheChosenRevisionUnderTheSameName() throws IOException {
+        final List<String> calls = new ArrayList<>();
+        PolicyHistoryDialog.restore(new PolicyHistoryDialog.Restorer() {
+            @Override
+            public String read(final String name, final int revision) {
+                calls.add("read " + name + " " + revision);
+                return "{\"identifiers\":{}}";
+            }
+
+            @Override
+            public void save(final String name, final String json) {
+                calls.add("save " + name + " " + json);
+            }
+        }, "claims-2025", 3);
+        assertEquals(List.of("read claims-2025 3", "save claims-2025 {\"identifiers\":{}}"), calls);
+    }
+
+    @Test
+    void aRestoreOverALivePolicyIsExplained() {
+        assertTrue(PolicyHistoryDialog.restoreFailure("claims", refused(409, "Exists.", "policy_exists"))
+                .startsWith("You already have a policy named claims"));
+        assertEquals("Invalid policy.", PolicyHistoryDialog.restoreFailure("claims", refused(400, "Invalid policy.", null)));
+        assertEquals("The policy could not be restored.", PolicyHistoryDialog.restoreFailure("claims", refused(500, null, null)));
+    }
+
+    @Test
+    void eachRevisionNamesItsAuthorOrIsBlank() {
+        final PolicyVersionSummary version = new PolicyVersionSummary();
+        version.setAuthor("jordan");
+        assertEquals("jordan", PolicyHistoryDialog.author(version));
+        version.setAuthor(null);
+        assertEquals("", PolicyHistoryDialog.author(version));
     }
 
 }

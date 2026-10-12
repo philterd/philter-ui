@@ -16,6 +16,7 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
+import ai.philterd.philter.model.ListOptions;
 import ai.philterd.philter.model.PolicyVersionSummary;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
@@ -36,19 +37,27 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import java.io.IOException;
 import java.util.List;
 
-/** A policy's retained revisions: view one, roll back to one, or compare two. */
+/**
+ * A policy's retained revisions, with who made each: view one or compare two, and roll back to one or, for a
+ * deleted policy, restore it from one.
+ */
 final class PolicyHistoryDialog {
-
-    /** The most revisions Philter returns at once, newest first. */
 
     private final PhilterClient client;
     private final String name;
-    private final Runnable onRollback;
+    private final boolean deleted;
+    private final Runnable onChange;
 
-    PolicyHistoryDialog(final PhilterClient client, final String name, final Runnable onRollback) {
+    /**
+     * @param deleted  Whether the policy is deleted: its history is read the same way, but it is restored from a
+     *                 revision rather than rolled back.
+     * @param onChange Run after a rollback or restore, so the page can show the change.
+     */
+    PolicyHistoryDialog(final PhilterClient client, final String name, final boolean deleted, final Runnable onChange) {
         this.client = client;
         this.name = name;
-        this.onRollback = onRollback;
+        this.deleted = deleted;
+        this.onChange = onChange;
     }
 
     void open() {
@@ -56,8 +65,8 @@ final class PolicyHistoryDialog {
         final List<PolicyVersionSummary> versions;
         try {
             // As many as Philter returns in one page, newest first.
-            versions = ViewSupport.orEmpty(client.getPolicyVersions(name, null, 0,
-                    ViewSupport.rules(client).maximumPageSize()));
+            versions = ViewSupport.orEmpty(client.listPolicyVersions(name, null,
+                    new ListOptions().offset(0).limit(ViewSupport.rules(client).maximumPageSize())).getItems());
         } catch (final ClientException | ServiceUnavailableException | IOException e) {
             Notifications.failure(e, "The policy's history could not be read.");
             return;
@@ -66,7 +75,7 @@ final class PolicyHistoryDialog {
 
         final Dialog dialog = new Dialog();
         dialog.setWidth("900px");
-        dialog.add(new H3("Version History: " + name));
+        dialog.add(new H3("Version History: " + name + (deleted ? " (deleted)" : "")));
 
         if (versions.isEmpty()) {
             dialog.add(new Paragraph("No retained versions of this policy."));
@@ -74,19 +83,30 @@ final class PolicyHistoryDialog {
             final Grid<PolicyVersionSummary> grid = new Grid<>();
             grid.addColumn(PolicyVersionSummary::getRevision).setHeader("Revision").setAutoWidth(true).setFlexGrow(0);
             grid.addColumn(v -> ViewSupport.utc(v.getCapturedTimestamp())).setHeader("Captured").setAutoWidth(true);
+            grid.addColumn(PolicyHistoryDialog::author).setHeader("Author").setAutoWidth(true);
             grid.addColumn(v -> shortHash(v.getContentHash())).setHeader("Hash").setAutoWidth(true);
             grid.addComponentColumn(v -> ViewSupport.button("View", VaadinIcon.EYE, "View revision " + v.getRevision(),
                     () -> openRevision(v.getRevision()))).setHeader("View").setAutoWidth(true).setFlexGrow(0);
-            grid.addComponentColumn(v -> {
-                final Button rollback = ViewSupport.button("Roll Back", VaadinIcon.BACKWARDS,
-                        "Roll back to revision " + v.getRevision(), () -> openRollback(v.getRevision(), dialog));
-                rollback.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
-                if (v.getRevision() == latest) {
-                    rollback.setEnabled(false);
-                    rollback.setTooltipText("This is the current revision.");
-                }
-                return rollback;
-            }).setHeader("Roll Back").setAutoWidth(true).setFlexGrow(0);
+            if (deleted) {
+                grid.addComponentColumn(v -> ViewSupport.button("Restore", VaadinIcon.ARROW_BACKWARD,
+                        "Restore " + name + " from revision " + v.getRevision(),
+                        () -> openRestore(client, name, v.getRevision(), () -> {
+                            dialog.close();
+                            onChange.run();
+                        }))).setHeader("Restore").setAutoWidth(true).setFlexGrow(0);
+            } else {
+                // A deleted policy has no current revision to roll back from, so it is restored instead.
+                grid.addComponentColumn(v -> {
+                    final Button rollback = ViewSupport.button("Roll Back", VaadinIcon.BACKWARDS,
+                            "Roll back to revision " + v.getRevision(), () -> openRollback(v.getRevision(), dialog));
+                    rollback.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
+                    if (v.getRevision() == latest) {
+                        rollback.setEnabled(false);
+                        rollback.setTooltipText("This is the current revision.");
+                    }
+                    return rollback;
+                }).setHeader("Roll Back").setAutoWidth(true).setFlexGrow(0);
+            }
             grid.setItems(versions);
             grid.setAllRowsVisible(versions.size() <= 10);
             dialog.add(grid);
@@ -121,7 +141,7 @@ final class PolicyHistoryDialog {
                 final int created = client.rollbackPolicy(name, revision).getRevision();
                 dialog.close();
                 history.close();
-                onRollback.run();
+                onChange.run();
                 Notifications.success(name + " rolled back to revision " + revision + ", saved as revision " + created + ".");
             } catch (final ClientException ex) {
                 dialog.close();
@@ -189,6 +209,73 @@ final class PolicyHistoryDialog {
         grid.setItems(differences);
         grid.setAllRowsVisible(true);
         return grid;
+    }
+
+    /** Reads a revision of a deleted policy and saves a policy, so a restore can be tested without Philter. */
+    interface Restorer {
+        String read(String name, int revision) throws IOException;
+
+        void save(String name, String json) throws IOException;
+    }
+
+    /**
+     * Restores a deleted policy from one of its revisions: the revision's content is saved as a policy under the
+     * same name, which continues its history at a new revision.
+     */
+    static void restore(final Restorer restorer, final String name, final int revision) throws IOException {
+        restorer.save(name, restorer.read(name, revision));
+    }
+
+    /** Asks before restoring a deleted policy from {@code revision}, and runs {@code onRestored} once it is. */
+    static void openRestore(final PhilterClient client, final String name, final int revision, final Runnable onRestored) {
+
+        final Dialog dialog = new Dialog();
+        dialog.setWidth("450px");
+        dialog.add(new H3("Restore Policy"), new Paragraph("Restore " + name + " from revision " + revision
+                + "? It is saved as your policy " + name + " again, at a new revision, and its history continues. "
+                + "This is audited."));
+
+        final Button restore = new Button("Restore", e -> {
+            try {
+                restore(new Restorer() {
+                    @Override
+                    public String read(final String policy, final int number) throws IOException {
+                        return client.getPolicyVersion(policy, number);
+                    }
+
+                    @Override
+                    public void save(final String policy, final String json) throws IOException {
+                        client.savePolicy(policy, json);
+                    }
+                }, name, revision);
+                dialog.close();
+                onRestored.run();
+                Notifications.success(name + " restored from revision " + revision + ".");
+            } catch (final ClientException ex) {
+                dialog.close();
+                Notifications.failure(restoreFailure(name, ex));
+            } catch (final IOException | ServiceUnavailableException ex) {
+                Notifications.failure(ex, "The policy could not be restored.");
+            }
+        });
+        restore.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        dialog.getFooter().add(ViewSupport.cancel(dialog), restore);
+        dialog.open();
+
+    }
+
+    /** Why Philter refused to restore a deleted policy. */
+    static String restoreFailure(final String name, final ClientException e) {
+        if ("policy_exists".equals(e.getReason())) {
+            return "You already have a policy named " + name + ", so the deleted one cannot be restored under that "
+                    + "name. Delete the current one first to restore it.";
+        }
+        return e.getErrorMessage() == null ? "The policy could not be restored." : e.getErrorMessage();
+    }
+
+    /** Who made a revision, or blank when Philter does not know. */
+    static String author(final PolicyVersionSummary version) {
+        return version.getAuthor() == null ? "" : version.getAuthor();
     }
 
     /** Why Philter refused a rollback. */
