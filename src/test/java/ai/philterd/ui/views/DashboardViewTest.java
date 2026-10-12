@@ -92,7 +92,6 @@ class DashboardViewTest {
     @Test
     void philtersSizeRefusalIsNamed() {
         assertTrue(DashboardView.isTooLarge(new ClientException("HTTP 413", 413, "Too large.", "payload_too_large")));
-        assertTrue(DashboardView.isTooLarge(new ClientException("HTTP 413", 413, null)));
         assertFalse(DashboardView.isTooLarge(new ClientException("HTTP 400", 400, "Bad.", "invalid_request")));
         assertEquals("The PDF is too large. Philter accepts a PDF of at most 10 MB.", DashboardView.tooLarge(10 * MB));
     }

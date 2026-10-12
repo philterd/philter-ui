@@ -16,7 +16,7 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
-import ai.philterd.ui.security.Notice;
+import ai.philterd.ui.security.SessionErrorHandler;
 import ai.philterd.ui.security.Sessions;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -40,7 +40,7 @@ public class SessionEndedView extends Div implements HasErrorParameter<Unauthori
 
     @Override
     public int setErrorParameter(final BeforeEnterEvent event, final ErrorParameter<UnauthorizedException> parameter) {
-        sessions.end(Notice.ENDED);
+        sessions.end(SessionErrorHandler.noticeFor(parameter.getException()));
         return HttpServletResponse.SC_UNAUTHORIZED;
     }
 

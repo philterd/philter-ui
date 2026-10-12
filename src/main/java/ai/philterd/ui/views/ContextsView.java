@@ -22,6 +22,7 @@ import ai.philterd.philter.model.GetContextsAcrossUsersResponse;
 import ai.philterd.philter.model.GetContextsResponse;
 import ai.philterd.philter.model.OwnedName;
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.ContextCounts;
 import ai.philterd.ui.model.Listing;
@@ -320,11 +321,10 @@ public class ContextsView extends VerticalLayout {
     /** Why Philter refused to create a context, using its {@code reason} to tell the 409s apart. */
     static String createFailure(final ClientException e) {
         final String reason = e.getReason();
-        if ("context_limit_reached".equals(reason)) {
+        if (ErrorReasons.CONTEXT_LIMIT_REACHED.equals(reason)) {
             return "You already have as many contexts as Philter allows. Delete one first.";
         }
-        // Before Philter gave a reason, a 409 here could only mean a duplicate name.
-        if ("context_exists".equals(reason) || (reason == null && e.getStatusCode() == 409)) {
+        if (ErrorReasons.CONTEXT_EXISTS.equals(reason)) {
             return "You already have a context with this name.";
         }
         return messageOr(e, "The context could not be created.");

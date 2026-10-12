@@ -16,6 +16,7 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.philter.model.exceptions.SignInRateLimitedException;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
@@ -80,7 +81,7 @@ public class MfaCodeView extends StepLayout {
         } catch (final SignInRateLimitedException e) {
             showError(SignInMessages.RATE_LIMITED);
         } catch (final ClientException e) {
-            if (e.getStatusCode() == 403) {
+            if (ErrorReasons.MFA_LOCKED.equals(e.getReason())) {
                 sessions.end(Notice.MFA_LOCKED);
             } else {
                 showError(SignInMessages.forFailure(e));

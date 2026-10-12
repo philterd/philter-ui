@@ -26,6 +26,7 @@ public enum Notice {
 
     SIGNED_OUT("signed-out", "You have signed out."),
     ENDED("ended", "Your session has ended. Sign in again."),
+    DEACTIVATED("deactivated", "Your account has been deactivated. Ask an administrator to reactivate it."),
     PASSWORD_CHANGED("password-changed", "Your password has been changed. Sign in with your new password."),
     MFA_ENROLLED("mfa-enrolled", "Multi-factor authentication is set up. Sign in again, with a code from your authenticator app."),
     MFA_FAILED("mfa-failed", "That code was not accepted. Sign in again."),

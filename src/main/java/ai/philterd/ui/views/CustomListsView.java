@@ -19,6 +19,7 @@ import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.CustomListSummary;
 import ai.philterd.philter.model.GetListsResponse;
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.model.Lines;
@@ -226,7 +227,7 @@ public class CustomListsView extends VerticalLayout {
                 refresh();
                 Notifications.success("List updated.");
             } catch (final ClientException ex) {
-                if (ex.getStatusCode() == 404) {
+                if (ErrorReasons.NOT_FOUND.equals(ex.getReason())) {
                     // Deleted since the dialog opened.
                     dialog.close();
                     refresh();

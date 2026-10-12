@@ -47,8 +47,8 @@ class ContextsViewTest {
     }
 
     @Test
-    void aConflictWithoutAReasonIsADuplicateName() {
-        assertEquals("You already have a context with this name.", ContextsView.createFailure(
+    void aConflictWithoutAReasonShowsPhiltersMessage() {
+        assertEquals("Context already exists.", ContextsView.createFailure(
                 new ClientException("HTTP 409", 409, "Context already exists.")));
     }
 

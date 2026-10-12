@@ -15,6 +15,7 @@
  */
 package ai.philterd.ui.security;
 
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.notification.Notification;
@@ -52,7 +53,7 @@ public class SessionErrorHandler implements VaadinServiceInitListener {
     private void handle(final ErrorEvent event) {
 
         if (isSessionKeyRejected(event.getThrowable())) {
-            sessions.end(Notice.ENDED);
+            sessions.end(noticeFor(event.getThrowable()));
             return;
         }
 
@@ -72,12 +73,26 @@ public class SessionErrorHandler implements VaadinServiceInitListener {
     }
 
     public static boolean isSessionKeyRejected(final Throwable throwable) {
+        return rejection(throwable) != null;
+    }
+
+    /**
+     * What to tell a person whose session key Philter rejected: that their account was deactivated, when Philter
+     * says so, or otherwise that their session ended and they should sign in again.
+     */
+    public static Notice noticeFor(final Throwable throwable) {
+        final UnauthorizedException rejection = rejection(throwable);
+        return rejection != null && ErrorReasons.USER_DEACTIVATED.equals(rejection.getReason())
+                ? Notice.DEACTIVATED : Notice.ENDED;
+    }
+
+    private static UnauthorizedException rejection(final Throwable throwable) {
         for (Throwable cause = throwable; cause != null; cause = cause.getCause()) {
-            if (cause instanceof UnauthorizedException) {
-                return true;
+            if (cause instanceof UnauthorizedException unauthorized) {
+                return unauthorized;
             }
         }
-        return false;
+        return null;
     }
 
 }

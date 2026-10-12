@@ -174,13 +174,11 @@ public class AccountView extends VerticalLayout {
                 // Philter revoked every session key of this user, including this one.
                 sessions.end(Notice.PASSWORD_CHANGED);
             } catch (final ClientException ex) {
-                if (ex.getStatusCode() == 403) {
-                    invalid(current, "The current password is not correct.");
-                } else if (ex.getStatusCode() == 409) {
+                switch (ChangePasswordView.passwordRefusal(ex)) {
+                    case WRONG_CURRENT -> invalid(current, ChangePasswordView.WRONG_CURRENT_PASSWORD);
                     // The password was changed by another request meanwhile, which ended this session.
-                    sessions.end(Notice.ENDED);
-                } else {
-                    invalid(password, ex.getErrorMessage() == null ? "Philter did not accept the new password."
+                    case CHANGED_ELSEWHERE -> sessions.end(Notice.ENDED);
+                    default -> invalid(password, ex.getErrorMessage() == null ? "Philter did not accept the new password."
                             : ex.getErrorMessage());
                 }
             } catch (final IOException | ServiceUnavailableException ex) {
@@ -247,9 +245,7 @@ public class AccountView extends VerticalLayout {
                 // Philter revoked the session key; the person signs in again, with a code.
                 sessions.end(Notice.MFA_ENROLLED);
             } catch (final ClientException ex) {
-                invalid(code, ex.getStatusCode() == 400
-                        ? "That code is not valid. Check your authenticator app and try again."
-                        : messageOr(ex, "Multi-factor authentication could not be set up."));
+                invalid(code, MfaEnrollmentView.confirmFailure(ex));
             } catch (final IOException | ServiceUnavailableException ex) {
                 invalid(code, SignInMessages.UNAVAILABLE);
             }

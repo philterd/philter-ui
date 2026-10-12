@@ -20,6 +20,7 @@ import ai.philterd.philter.model.LegalHoldRequest;
 import ai.philterd.philter.model.LegalHoldResponse;
 import ai.philterd.philter.model.OwnedLegalHoldResponse;
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.PhilterRules;
 import ai.philterd.ui.model.Listing;
@@ -224,7 +225,7 @@ public class HoldsView extends VerticalLayout {
                 Notifications.success("Hold \"" + reference + "\" released.");
             } catch (final ClientException | ServiceUnavailableException | IOException ex) {
                 Notifications.failure(ex, "The hold could not be released.");
-                if (ex instanceof ClientException refused && refused.getStatusCode() == 404) {
+                if (ex instanceof ClientException refused && ErrorReasons.NOT_FOUND.equals(refused.getReason())) {
                     // Released elsewhere since the page was loaded.
                     dialog.close();
                     refresh();

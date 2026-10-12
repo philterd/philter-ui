@@ -26,6 +26,7 @@ import ai.philterd.philter.model.SigningKey;
 import ai.philterd.philter.model.UpdateAdminSettingsRequest;
 import ai.philterd.philter.model.User;
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.Listing;
 import ai.philterd.ui.security.PhilterClients;
@@ -74,7 +75,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -268,9 +268,10 @@ public class AdminView extends VerticalLayout {
                 Notifications.success(username.getValue().trim() + " added.");
             } catch (final ClientException ex) {
                 final String message = messageOr(ex, "Philter did not add the user.");
-                switch (refusedField(message)) {
+                switch (refusedField(ex)) {
                     case PASSWORD -> invalid(password, message);
                     case EMAIL -> invalid(email, message);
+                    case ROLE -> invalid(role, message);
                     default -> invalid(username, message);
                 }
             } catch (final IOException | ServiceUnavailableException ex) {
@@ -627,7 +628,8 @@ public class AdminView extends VerticalLayout {
                 problem.setText("");
                 return page.events().stream();
             } catch (final ClientException ex) {
-                if (ex.getStatusCode() != 400 && ex.getStatusCode() != 404) {
+                // An event type Philter does not record, or a user it does not know, is shown beside the filters.
+                if (!ErrorReasons.INVALID_REQUEST.equals(ex.getReason()) && !ErrorReasons.NOT_FOUND.equals(ex.getReason())) {
                     throw ex;
                 }
                 total.setText("");
@@ -800,7 +802,7 @@ public class AdminView extends VerticalLayout {
             setter.set(username, blankToNull(email));
             return null;
         } catch (final ClientException e) {
-            if (e.getStatusCode() != 400) {
+            if (!ErrorReasons.INVALID_REQUEST.equals(e.getReason())) {
                 throw e;
             }
             return messageOr(e, "Philter did not accept the email address.");
@@ -808,18 +810,22 @@ public class AdminView extends VerticalLayout {
     }
 
     /** The New User fields a refusal from Philter can be about. */
-    enum UserField { USERNAME, EMAIL, PASSWORD }
+    enum UserField { USERNAME, EMAIL, ROLE, PASSWORD }
 
-    /** Which field Philter's refusal to create a user is about, from its message. */
-    static UserField refusedField(final String message) {
-        final String lower = message == null ? "" : message.toLowerCase(Locale.ROOT);
-        if (lower.contains("password")) {
-            return UserField.PASSWORD;
+    /**
+     * Which field Philter's refusal to create a user is about: the one Philter names in {@code field}, and the
+     * username otherwise, such as when it is already in use.
+     */
+    static UserField refusedField(final ClientException e) {
+        if (e.getField() == null) {
+            return UserField.USERNAME;
         }
-        if (lower.contains("email")) {
-            return UserField.EMAIL;
-        }
-        return UserField.USERNAME;
+        return switch (e.getField()) {
+            case "password" -> UserField.PASSWORD;
+            case "email" -> UserField.EMAIL;
+            case "role" -> UserField.ROLE;
+            default -> UserField.USERNAME;
+        };
     }
 
     /** A range of the audit log and how many events match the filters across every page. */

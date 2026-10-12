@@ -16,6 +16,7 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.security.Notice;
 import ai.philterd.ui.security.PhilterClients;
@@ -104,21 +105,33 @@ public class ChangePasswordView extends StepLayout {
             // Philter revoked the session key; the person signs in again with the new password.
             sessions.end(Notice.PASSWORD_CHANGED);
         } catch (final ClientException e) {
-            if (e.getStatusCode() == 403) {
-                invalid(current, "The current password is not correct.");
-            } else if (e.getStatusCode() == 400) {
-                invalid(password, e.getErrorMessage() == null
+            switch (passwordRefusal(e)) {
+                case WRONG_CURRENT -> invalid(current, WRONG_CURRENT_PASSWORD);
+                // The password was changed by another request meanwhile, which ended this session.
+                case CHANGED_ELSEWHERE -> sessions.end(Notice.ENDED);
+                default -> invalid(password, e.getErrorMessage() == null
                         ? "Philter did not accept the new password." : e.getErrorMessage());
-            } else if (e.getStatusCode() == 409) {
-                // The password was changed by another request meanwhile.
-                sessions.end(Notice.ENDED);
-            } else {
-                invalid(password, "Philter could not change the password. Try again later.");
             }
         } catch (final IOException | ServiceUnavailableException e) {
             invalid(password, SignInMessages.UNAVAILABLE);
         }
 
+    }
+
+    static final String WRONG_CURRENT_PASSWORD = "The current password is not correct.";
+
+    /** What Philter's refusal to change a password was about. */
+    enum PasswordRefusal { WRONG_CURRENT, CHANGED_ELSEWHERE, NEW_PASSWORD }
+
+    /** Reads Philter's reason, and the field it names, for a refused password change. */
+    static PasswordRefusal passwordRefusal(final ClientException e) {
+        if (ErrorReasons.WRONG_PASSWORD.equals(e.getReason()) || "currentPassword".equals(e.getField())) {
+            return PasswordRefusal.WRONG_CURRENT;
+        }
+        if (ErrorReasons.CHANGED_CONCURRENTLY.equals(e.getReason())) {
+            return PasswordRefusal.CHANGED_ELSEWHERE;
+        }
+        return PasswordRefusal.NEW_PASSWORD;
     }
 
     private static void invalid(final PasswordField field, final String message) {

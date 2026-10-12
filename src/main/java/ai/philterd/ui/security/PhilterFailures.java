@@ -16,10 +16,18 @@
 package ai.philterd.ui.security;
 
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 
 /** What to tell a person when a request to Philter failed. */
 public final class PhilterFailures {
+
+    /** Shown when Philter says an administrator is required, which for someone who saw the action means their role changed. */
+    public static final String ADMIN_REQUIRED = "This needs an administrator. Your role may have changed; open the "
+            + "page again to see what you can do now.";
+
+    /** Shown, with Philter's explanation, when Philter says the action is turned off. */
+    public static final String FEATURE_DISABLED = "This is turned off in this Philter deployment.";
 
     private PhilterFailures() {
     }
@@ -31,6 +39,12 @@ public final class PhilterFailures {
     public static String messageFor(final Throwable throwable) {
         for (Throwable cause = throwable; cause != null; cause = cause.getCause()) {
             if (cause instanceof ClientException refusal) {
+                if (ErrorReasons.ADMIN_REQUIRED.equals(refusal.getReason())) {
+                    return ADMIN_REQUIRED;
+                }
+                if (ErrorReasons.FEATURE_DISABLED.equals(refusal.getReason())) {
+                    return FEATURE_DISABLED + (refusal.getErrorMessage() == null ? "" : " " + refusal.getErrorMessage());
+                }
                 return refusal.getErrorMessage() != null ? refusal.getErrorMessage()
                         : "Philter answered with HTTP " + refusal.getStatusCode() + ".";
             }

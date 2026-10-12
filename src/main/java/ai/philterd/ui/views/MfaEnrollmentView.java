@@ -17,6 +17,7 @@ package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.MfaEnrollment;
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.security.Notice;
 import ai.philterd.ui.security.PhilterClients;
@@ -94,9 +95,7 @@ public class MfaEnrollmentView extends StepLayout {
             qrCode.setAlt("QR code for your authenticator app");
             secret.setText("Setup key: " + grouped(enrollment.getSecret()));
         } catch (final ClientException e) {
-            showProblem(e.getStatusCode() == 409
-                    ? "Multi-factor authentication could not be started. Ask an administrator whether it is available."
-                    : "Multi-factor authentication could not be started.");
+            showProblem(startFailure(e));
         } catch (final IOException | ServiceUnavailableException e) {
             showProblem(SignInMessages.UNAVAILABLE);
         }
@@ -113,14 +112,11 @@ public class MfaEnrollmentView extends StepLayout {
             // Philter revoked the session key; the person signs in again, this time with a code.
             sessions.end(Notice.MFA_ENROLLED);
         } catch (final ClientException e) {
-            if (e.getStatusCode() == 400) {
-                code.setErrorMessage("That code is not valid. Check your authenticator app and try again.");
-                code.setInvalid(true);
-            } else if (e.getStatusCode() == 409) {
+            if (endsEnrollment(e)) {
                 // Enrollment was completed, or MFA turned off, by another request meanwhile.
                 sessions.end(Notice.ENDED);
             } else {
-                code.setErrorMessage("Philter could not complete enrollment. Try again later.");
+                code.setErrorMessage(confirmFailure(e));
                 code.setInvalid(true);
             }
         } catch (final IOException | ServiceUnavailableException e) {
@@ -139,6 +135,35 @@ public class MfaEnrollmentView extends StepLayout {
     /** The secret in groups of four, which is easier to type. */
     static String grouped(final String secret) {
         return secret.replaceAll("(.{4})(?!$)", "$1 ");
+    }
+
+    static final String INVALID_CODE = "That code is not valid. Check your authenticator app and try again.";
+
+    /** Why Philter would not start enrollment. */
+    static String startFailure(final ClientException e) {
+        if (ErrorReasons.MFA_UNAVAILABLE.equals(e.getReason())) {
+            return "Multi-factor authentication is not available. An administrator can make it available.";
+        }
+        if (ErrorReasons.MFA_ALREADY_ENROLLED.equals(e.getReason())) {
+            return "You have already set up multi-factor authentication.";
+        }
+        return e.getErrorMessage() == null ? "Multi-factor authentication could not be started." : e.getErrorMessage();
+    }
+
+    /** Whether a refused confirmation means enrollment ended elsewhere: completed, or MFA turned off. */
+    static boolean endsEnrollment(final ClientException e) {
+        return ErrorReasons.MFA_ALREADY_ENROLLED.equals(e.getReason()) || ErrorReasons.MFA_UNAVAILABLE.equals(e.getReason());
+    }
+
+    /** Why Philter would not confirm enrollment with a code. */
+    static String confirmFailure(final ClientException e) {
+        if (ErrorReasons.INVALID_CODE.equals(e.getReason()) || "code".equals(e.getField())) {
+            return INVALID_CODE;
+        }
+        if (ErrorReasons.MFA_LOCKED.equals(e.getReason())) {
+            return SignInMessages.MFA_LOCKED;
+        }
+        return e.getErrorMessage() == null ? "Philter could not complete enrollment. Try again later." : e.getErrorMessage();
     }
 
 }

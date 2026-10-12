@@ -59,9 +59,9 @@ final class FakePhilter implements AutoCloseable {
             if ("123456".equals(code)) {
                 respond(exchange, 200, session("sk_mfa", "mfa", false, false));
             } else if ("999999".equals(code)) {
-                respond(exchange, 403, "{\"message\":\"MFA is locked.\"}");
+                respond(exchange, 403, "{\"message\":\"MFA is locked.\",\"reason\":\"mfa_locked\"}");
             } else {
-                respond(exchange, 401, "{\"message\":\"Unauthorized\"}");
+                respond(exchange, 401, "{\"message\":\"Unauthorized\",\"reason\":\"invalid_credentials\"}");
             }
             return;
         }
@@ -82,9 +82,9 @@ final class FakePhilter implements AutoCloseable {
                 exchange.getResponseHeaders().add("Retry-After", "60");
                 respond(exchange, 429, "{\"message\":\"Too many requests.\",\"reason\":\"rate_limited\"}");
             }
-            case "mfalocked" -> respond(exchange, 403, "{\"message\":\"MFA is locked.\"}");
-            case "disabled" -> respond(exchange, 404, "{\"message\":\"Not found.\"}");
-            default -> respond(exchange, 401, "{\"message\":\"Unauthorized\"}");
+            case "mfalocked" -> respond(exchange, 403, "{\"message\":\"MFA is locked.\",\"reason\":\"mfa_locked\"}");
+            case "disabled" -> respond(exchange, 404, "{\"message\":\"Not found.\",\"reason\":\"not_found\"}");
+            default -> respond(exchange, 401, "{\"message\":\"Unauthorized\",\"reason\":\"invalid_credentials\"}");
         }
     }
 
@@ -102,7 +102,7 @@ final class FakePhilter implements AutoCloseable {
         record(exchange);
         final String key = key(exchange);
         if ("sk_expired".equals(key)) {
-            respond(exchange, 401, "{\"message\":\"Unauthorized\"}");
+            respond(exchange, 401, "{\"message\":\"Unauthorized\",\"reason\":\"invalid_credentials\"}");
             return;
         }
         revokedKeys.add(key);

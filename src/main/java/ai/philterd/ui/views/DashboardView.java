@@ -287,7 +287,7 @@ public class DashboardView extends VerticalLayout {
 
     /** Whether Philter refused the document as too large. */
     static boolean isTooLarge(final ClientException e) {
-        return e.getStatusCode() == 413 || ErrorReasons.PAYLOAD_TOO_LARGE.equals(e.getReason());
+        return ErrorReasons.PAYLOAD_TOO_LARGE.equals(e.getReason());
     }
 
     /** What to tell a person whose PDF is over the limit. */

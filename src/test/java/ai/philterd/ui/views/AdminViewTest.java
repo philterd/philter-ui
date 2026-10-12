@@ -285,19 +285,29 @@ class AdminViewTest {
 
         // Philter's own refusal is shown as it gives it.
         assertEquals("That domain is not allowed.", AdminView.saveEmail((u, e) -> {
-            throw new ClientException("HTTP 400", 400, "That domain is not allowed.");
+            throw new ClientException("HTTP 400", 400, "That domain is not allowed.", "invalid_request", null, "email");
         }, "jordan", "jordan@example.com"));
         assertThrows(ClientException.class, () -> AdminView.saveEmail((u, e) -> {
-            throw new ClientException("HTTP 404", 404, "No such user.");
+            throw new ClientException("HTTP 404", 404, "No such user.", "not_found");
         }, "gone", "jordan@example.com"));
     }
 
     @Test
-    void aRefusalToCreateAUserIsShownOnItsField() {
-        assertEquals(AdminView.UserField.EMAIL, AdminView.refusedField("The email address is not valid."));
-        assertEquals(AdminView.UserField.PASSWORD, AdminView.refusedField("The password must be at least 16 characters."));
-        assertEquals(AdminView.UserField.USERNAME, AdminView.refusedField("The username is taken."));
-        assertEquals(AdminView.UserField.USERNAME, AdminView.refusedField(null));
+    void aRefusalToCreateAUserIsShownOnTheFieldPhilterNames() {
+        assertEquals(AdminView.UserField.EMAIL, AdminView.refusedField(invalid("email")));
+        assertEquals(AdminView.UserField.PASSWORD, AdminView.refusedField(invalid("password")));
+        assertEquals(AdminView.UserField.ROLE, AdminView.refusedField(invalid("role")));
+        assertEquals(AdminView.UserField.USERNAME, AdminView.refusedField(invalid("username")));
+        // A refusal that names no field, such as a username already in use, is shown on the username.
+        assertEquals(AdminView.UserField.USERNAME, AdminView.refusedField(new ClientException("HTTP 409", 409,
+                "User already exists.", "already_exists")));
+        // The message is not read: one mentioning a password but naming the email is shown on the email.
+        assertEquals(AdminView.UserField.EMAIL, AdminView.refusedField(new ClientException("HTTP 400", 400,
+                "The email address is not valid; it cannot be a password.", "invalid_request", null, "email")));
+    }
+
+    private static ClientException invalid(final String field) {
+        return new ClientException("HTTP 400", 400, "Not valid.", "invalid_request", null, field);
     }
 
     @Test

@@ -16,6 +16,7 @@
 package ai.philterd.ui.security;
 
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.philter.model.exceptions.SignInLockedException;
 import ai.philterd.philter.model.exceptions.SignInRateLimitedException;
@@ -47,12 +48,19 @@ public final class SignInMessages {
         if (exception instanceof UnauthorizedException) {
             return INVALID;
         }
-        if (exception instanceof ClientException client) {
-            if (client.getStatusCode() == 403) {
-                return MFA_LOCKED;
-            }
-            if (client.getStatusCode() == 404) {
-                return DISABLED;
+        if (exception instanceof ClientException client && client.getReason() != null) {
+            switch (client.getReason()) {
+                case ErrorReasons.MFA_LOCKED:
+                    return MFA_LOCKED;
+                case ErrorReasons.RATE_LIMITED:
+                    return RATE_LIMITED;
+                case ErrorReasons.INVALID_CREDENTIALS:
+                    return INVALID;
+                // Philter answers every sign-in endpoint with not_found while password sign-in is off.
+                case ErrorReasons.NOT_FOUND:
+                    return DISABLED;
+                default:
+                    break;
             }
         }
         if (exception instanceof ServiceUnavailableException || exception instanceof IOException) {
