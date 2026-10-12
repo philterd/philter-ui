@@ -22,15 +22,16 @@ services:
     depends_on:
       ph-eye:
         condition: service_started
-      mongodb:
-        condition: service_healthy
     environment:
       PASSWORD_SIGN_IN_ENABLED: "true"
       SSL_ENABLED: "false"
-      MONGODB_CONNECTION_STRING: mongodb://philter:philter@mongodb:27017/philter?authSource=admin
+      STORAGE_TYPE: sqlite
+      SQLITE_PATH: /opt/philter/data/philter.db
       PHEYE_ENDPOINT: http://ph-eye:5000/
       PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:-pF46QOBznYcOZrnflw9HsRBIe9769uW/Bza2blBpHIk=}
       PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-sk_developmentonlydevelopmentonly01}
+    volumes:
+      - philter-data:/opt/philter/data
     ports:
       - "127.0.0.1:8080:8080"
     networks:
@@ -41,25 +42,8 @@ services:
     networks:
       - philter
 
-  mongodb:
-    image: mongo:8.2.12
-    environment:
-      MONGO_INITDB_DATABASE: philter
-      MONGO_INITDB_ROOT_USERNAME: philter
-      MONGO_INITDB_ROOT_PASSWORD: philter
-    volumes:
-      - mongodb-data:/data/db
-    networks:
-      - philter
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
 volumes:
-  mongodb-data:
+  philter-data:
 
 networks:
   philter:

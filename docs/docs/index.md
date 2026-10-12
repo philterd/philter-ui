@@ -33,7 +33,9 @@ Serve Philter UI to its users over HTTPS, for example behind a reverse proxy tha
 
 ### Docker Compose
 
-The `docker-compose.yml` in the [Philter UI repository](https://github.com/philterd/philter-ui) runs Philter UI, built from source, beside Philter 4.0.0 and the MongoDB and ph-eye services Philter needs. Philter has password sign-in turned on and serves plain HTTP on the private compose network, where Philter UI reaches it at `http://philter:8080`. It is meant for development and evaluation.
+The `docker-compose.yml` in the [Philter UI repository](https://github.com/philterd/philter-ui) runs Philter UI, built from source, beside Philter 4.0.0 and the ph-eye service Philter needs. Philter has password sign-in turned on and serves plain HTTP on the private compose network, where Philter UI reaches it at `http://philter:8080`. It is meant for development and evaluation.
+
+Philter keeps its data in a SQLite database (`STORAGE_TYPE=sqlite`) in the `philter-data` volume, mounted at `/opt/philter/data`, so users, policies, and other data survive `docker compose down` and `docker compose up`. `docker compose down -v` removes the volume and its data. To run Philter on MongoDB instead, for example to run several Philter instances, see Philter's [database documentation]({$ philter_docs }/database.html#choosing-sqlite-or-mongodb).
 
 ```
 docker compose up -d --build
@@ -47,7 +49,7 @@ curl -X PUT http://localhost:8080/api/users/admin/password \
   -H "Content-Type: application/json" -d '{"password": "<16 or more characters>"}'
 ```
 
-Before using it with real data, replace the development `PHILTER_ENCRYPTION_KEY`, `PHILTER_BOOTSTRAP_API_KEY`, and MongoDB password, and serve Philter UI over HTTPS.
+Before using it with real data, replace the development `PHILTER_ENCRYPTION_KEY` and `PHILTER_BOOTSTRAP_API_KEY`, and serve Philter UI over HTTPS.
 
 ### Client addresses
 
