@@ -21,7 +21,11 @@ import ai.philterd.philter.model.ApiKeyScopeDescription;
 import ai.philterd.philter.model.CurrentUser;
 import ai.philterd.philter.model.MfaEnrollment;
 import ai.philterd.philter.model.Webhook;
+import ai.philterd.philter.model.WebhookDelivery;
+import ai.philterd.philter.model.WebhookEvents;
+import ai.philterd.philter.model.WebhookTestResult;
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.Pages;
 import ai.philterd.ui.security.Notice;
@@ -74,7 +78,7 @@ import java.util.stream.Collectors;
 @RolesAllowed(Roles.USER)
 public class AccountView extends VerticalLayout {
 
-    /** The shortest webhook secret Philter accepts. */
+    /** How long a generated webhook secret is, unless Philter requires a longer one. */
     static final int GENERATED_SECRET_LENGTH = 32;
 
     private static final String SECRET_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -85,6 +89,10 @@ public class AccountView extends VerticalLayout {
     private final transient Sessions sessions;
     private final Grid<ApiKey> keys = new Grid<>();
     private final Grid<ApiKey> signIns = new Grid<>();
+    private final Grid<WebhookDelivery> deliveries = new Grid<>();
+    /** Whether the person has a webhook, and whether it has a secret, as of the last read or save. */
+    private boolean webhookSet;
+    private boolean webhookSecretSet;
 
     public AccountView(final PhilterClients clients, final Sessions sessions) {
 
@@ -421,29 +429,26 @@ public class AccountView extends VerticalLayout {
     private Component webhookTab() {
 
         final Webhook webhook = ViewSupport.unchecked(client::getWebhook);
-        final boolean configured = webhook != null && webhook.getUrl() != null && !webhook.getUrl().isBlank();
+        webhookSet = webhook != null && webhook.getUrl() != null && !webhook.getUrl().isBlank();
+        webhookSecretSet = webhookSet && webhook.isSecretSet();
 
         final Paragraph about = new Paragraph("Philter can call a URL you choose when an asynchronous redaction "
                 + "completes or fails, signing each call with a shared secret. ");
         about.add(PhilterDocs.link("Learn more about webhooks.", "api_and_sdks/api/webhooks.html"));
 
-        final Span status = new Span(configured
-                ? "A webhook is set" + (webhook.isSecretSet() ? ", with a secret." : ".")
-                : "No webhook is set.");
+        final Span status = new Span(webhookStatus(webhookSet, webhookSecretSet));
 
         final TextField url = new TextField("Webhook URL");
         url.setWidthFull();
         url.setPlaceholder("https://hooks.example.com/philter");
-        if (configured) {
+        if (webhookSet) {
             url.setValue(webhook.getUrl());
         }
         final PasswordField secret = new PasswordField("Secret");
         secret.setWidthFull();
         secret.setRevealButtonVisible(true);
         final Integer minimumSecret = ViewSupport.rules(client).webhookSecretMinimumLength();
-        secret.setHelperText((minimumSecret == null ? "Required on every save. "
-                : "At least " + minimumSecret + " characters, required on every save. ")
-                + "Philter never shows it again, so copy it to the receiving service before you leave this page.");
+        secret.setHelperText(secretHelp(minimumSecret, webhookSecretSet));
         final Button generate = new Button("Generate", e -> secret.setValue(generateSecret(minimumSecret)));
 
         final HorizontalLayout secretRow = new HorizontalLayout(secret, generate);
@@ -451,10 +456,26 @@ public class AccountView extends VerticalLayout {
         secretRow.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.BASELINE);
         secretRow.expand(secret);
 
+        final Span testResult = new Span();
+        final Button test = new Button("Send Test Event", VaadinIcon.PAPERPLANE.create(), e -> {
+            try {
+                testResult.setText(testOutcome(client.testWebhook()));
+            } catch (final ClientException ex) {
+                testResult.setText(ErrorReasons.WEBHOOK_NOT_SET.equals(ex.getReason())
+                        ? "No webhook is set." : messageOr(ex, "Philter could not test the webhook."));
+            } catch (final IOException | ServiceUnavailableException ex) {
+                testResult.setText("");
+                Notifications.failure(ex, "The webhook could not be tested.");
+            }
+            deliveries.getDataProvider().refreshAll();
+        });
+        test.setTooltipText("Send one signed test event to the webhook now and show how the receiver answered.");
+        test.setEnabled(webhookSet);
+
         final Button save = new Button("Save Webhook", e -> {
             url.setInvalid(false);
             secret.setInvalid(false);
-            final String problem = webhookProblem(url.getValue(), secret.getValue(), minimumSecret);
+            final String problem = webhookProblem(url.getValue(), secret.getValue(), minimumSecret, webhookSecretSet);
             if (problem != null) {
                 if (problem.startsWith("Enter a URL") || problem.startsWith("The URL")) {
                     invalid(url, problem);
@@ -464,8 +485,13 @@ public class AccountView extends VerticalLayout {
                 return;
             }
             try {
-                client.setWebhook(url.getValue().trim(), secret.getValue());
-                status.setText("A webhook is set, with a secret.");
+                final Webhook saved = client.setWebhook(url.getValue().trim(), secretToSend(secret.getValue()));
+                webhookSet = true;
+                webhookSecretSet = saved == null || saved.isSecretSet();
+                secret.clear();
+                secret.setHelperText(secretHelp(minimumSecret, webhookSecretSet));
+                status.setText(webhookStatus(webhookSet, webhookSecretSet));
+                test.setEnabled(true);
                 Notifications.success("Webhook saved.");
             } catch (final ClientException ex) {
                 invalid(url, messageOr(ex, "Philter did not accept the webhook."));
@@ -480,7 +506,12 @@ public class AccountView extends VerticalLayout {
                 client.removeWebhook();
                 url.clear();
                 secret.clear();
-                status.setText("No webhook is set.");
+                webhookSet = false;
+                webhookSecretSet = false;
+                secret.setHelperText(secretHelp(minimumSecret, false));
+                status.setText(webhookStatus(false, false));
+                test.setEnabled(false);
+                testResult.setText("");
                 Notifications.success("Webhook removed.");
             } catch (final ClientException | ServiceUnavailableException | IOException ex) {
                 Notifications.failure(ex, "The webhook could not be removed.");
@@ -488,9 +519,50 @@ public class AccountView extends VerticalLayout {
         });
         remove.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
-        final VerticalLayout layout = new VerticalLayout(about, status, url, secretRow, new HorizontalLayout(save, remove));
-        layout.setMaxWidth("700px");
+        final VerticalLayout settings = new VerticalLayout(about, status, url, secretRow,
+                new HorizontalLayout(save, test, remove), testResult);
+        settings.setPadding(false);
+        settings.setMaxWidth("700px");
+
+        final VerticalLayout layout = new VerticalLayout(settings, deliveriesSection());
+        layout.setSizeFull();
         return layout;
+
+    }
+
+    /** The webhook's delivery history, newest first, a page at a time. */
+    private Component deliveriesSection() {
+
+        deliveries.addColumn(d -> ViewSupport.utc(d.getCreatedAtText())).setHeader("Queued").setAutoWidth(true);
+        deliveries.addColumn(d -> eventLabel(d.getEvent())).setHeader("Event").setAutoWidth(true);
+        deliveries.addColumn(WebhookDelivery::getDocumentId).setHeader("Document").setResizable(true);
+        deliveries.addColumn(d -> statusLabel(d.getStatus())).setHeader("Status").setAutoWidth(true);
+        deliveries.addColumn(WebhookDelivery::getAttempts).setHeader("Attempts").setAutoWidth(true);
+        deliveries.addColumn(AccountView::lastError).setHeader("Last Error").setResizable(true);
+        deliveries.addColumn(AccountView::nextAttempt).setHeader("Next Attempt").setAutoWidth(true);
+        deliveries.setItems(
+                query -> ViewSupport.unchecked(() -> Pages.read(query.getOffset(), query.getLimit(),
+                        (offset, limit) -> ViewSupport.orEmpty(
+                                client.getWebhookDeliveries(null, offset, limit).getDeliveries()))).stream(),
+                query -> (int) Math.min(Integer.MAX_VALUE,
+                        ViewSupport.unchecked(() -> client.getWebhookDeliveries(null, 0, 1)).getTotal()));
+        deliveries.setPageSize(Pages.MAX_LIMIT);
+        deliveries.setMinHeight("250px");
+        deliveries.setSizeFull();
+
+        final Button refresh = new Button("Refresh", VaadinIcon.REFRESH.create(),
+                e -> deliveries.getDataProvider().refreshAll());
+        refresh.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        final HorizontalLayout heading = new HorizontalLayout(new H3("Deliveries"), refresh);
+        heading.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.BASELINE);
+
+        final VerticalLayout section = new VerticalLayout(heading,
+                new Span("Each event Philter queued for your webhook, newest first, with how its delivery went. "
+                        + "Test events are not listed."), deliveries);
+        section.setPadding(false);
+        section.setSizeFull();
+        return section;
 
     }
 
@@ -509,8 +581,12 @@ public class AccountView extends VerticalLayout {
         return null;
     }
 
-    /** What is wrong with a webhook before it is sent, or {@code null}. Philter also checks its allowlist. */
-    static String webhookProblem(final String url, final String secret, final Integer minimumSecret) {
+    /**
+     * What is wrong with a webhook before it is sent, or {@code null}. A blank secret keeps the one already set,
+     * so it is needed only when none is. Philter also checks its allowlist.
+     */
+    static String webhookProblem(final String url, final String secret, final Integer minimumSecret,
+                                 final boolean secretSet) {
         if (url == null || url.isBlank()) {
             return "Enter a URL.";
         }
@@ -524,12 +600,95 @@ public class AccountView extends VerticalLayout {
             return "The URL must be an http or https address.";
         }
         if (secret == null || secret.isEmpty()) {
-            return "Enter a secret; Philter requires it on every save.";
+            return secretSet ? null : "Enter a secret; Philter requires one for a new webhook.";
         }
         if (minimumSecret != null && secret.length() < minimumSecret) {
-            return "Enter a secret of at least " + minimumSecret + " characters; Philter requires it on every save.";
+            return "Enter a secret of at least " + minimumSecret + " characters.";
         }
         return null;
+    }
+
+    /** The secret to send: {@code null}, which keeps the one already set, when the field is blank. */
+    static String secretToSend(final String secret) {
+        return secret == null || secret.isEmpty() ? null : secret;
+    }
+
+    /** The secret field's helper text. */
+    static String secretHelp(final Integer minimumSecret, final boolean secretSet) {
+        final String length = minimumSecret == null ? "" : "At least " + minimumSecret + " characters. ";
+        final String keep = secretSet ? "Leave blank to keep the current secret. " : "Required for a new webhook. ";
+        return length + keep + "Philter never shows it again, so copy a new one to the receiving service before you "
+                + "leave this page.";
+    }
+
+    /** What the webhook section says is set. */
+    static String webhookStatus(final boolean set, final boolean secretSet) {
+        if (!set) {
+            return "No webhook is set.";
+        }
+        return secretSet ? "A webhook is set, with a secret." : "A webhook is set.";
+    }
+
+    /** How a test event went: whether the receiver accepted it, its status or Philter's error, and how long it took. */
+    static String testOutcome(final WebhookTestResult result) {
+        final StringBuilder text = new StringBuilder(result.isDelivered() ? "Delivered" : "Not delivered");
+        if (result.getStatusCode() != null) {
+            text.append(": the receiver answered HTTP ").append(result.getStatusCode());
+        }
+        text.append(result.getStatusCode() != null ? " in " : " after ").append(result.getDurationMillis()).append(" ms.");
+        // With a status, Philter's error only repeats it; without one, it says why the receiver was not reached.
+        if (!result.isDelivered() && result.getStatusCode() == null && result.getError() != null
+                && !result.getError().isBlank()) {
+            text.append(' ').append(result.getError().trim());
+            if (!result.getError().trim().endsWith(".")) {
+                text.append('.');
+            }
+        }
+        if (result.getDeliveryId() != null) {
+            text.append(" Delivery ID: ").append(result.getDeliveryId()).append('.');
+        }
+        return text.toString();
+    }
+
+    /** A delivery's status as a person reads it. */
+    static String statusLabel(final String status) {
+        if (status == null) {
+            return "";
+        }
+        return switch (status) {
+            case WebhookDelivery.PENDING -> "Pending";
+            case WebhookDelivery.PROCESSING -> "Sending";
+            case WebhookDelivery.DELIVERED -> "Delivered";
+            case WebhookDelivery.FAILED -> "Failed";
+            default -> status;
+        };
+    }
+
+    /** An event as a person reads it. */
+    static String eventLabel(final String event) {
+        if (event == null) {
+            return "";
+        }
+        return switch (event) {
+            case WebhookEvents.DOCUMENT_REDACTION_COMPLETE -> "Redaction complete";
+            case WebhookEvents.DOCUMENT_REDACTION_FAILED -> "Redaction failed";
+            case WebhookEvents.WEBHOOK_TEST -> "Test";
+            default -> event;
+        };
+    }
+
+    /** Why a pending or failed delivery's last attempt failed; blank once it is delivered. */
+    static String lastError(final WebhookDelivery delivery) {
+        return unsettled(delivery) && delivery.getLastError() != null ? delivery.getLastError() : "";
+    }
+
+    /** When a pending or failed delivery is next tried, in UTC; blank when there is no next attempt. */
+    static String nextAttempt(final WebhookDelivery delivery) {
+        return unsettled(delivery) ? ViewSupport.utc(delivery.getNextAttemptAtText()) : "";
+    }
+
+    private static boolean unsettled(final WebhookDelivery delivery) {
+        return WebhookDelivery.PENDING.equals(delivery.getStatus()) || WebhookDelivery.FAILED.equals(delivery.getStatus());
     }
 
     /**
