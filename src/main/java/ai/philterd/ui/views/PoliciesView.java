@@ -21,6 +21,7 @@ import ai.philterd.philter.model.GetDeletedPoliciesResponse;
 import ai.philterd.philter.model.ManagedPolicySummary;
 import ai.philterd.philter.model.OwnedName;
 import ai.philterd.philter.model.PolicyDetails;
+import ai.philterd.philter.model.PolicyWithETag;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.model.Listing;
@@ -250,10 +251,12 @@ public class PoliciesView extends VerticalLayout {
 
     private void openEdit(final String name) {
 
-        final String json;
+        final PolicyWithETag policy;
         final PolicyDetails details;
         try {
-            json = client.getPolicy(name);
+            // The policy's tag is read first, so a change made between the two reads makes the save refuse
+            // rather than overwrite it.
+            policy = client.getPolicyWithETag(name);
             details = client.getPolicyDetails(name);
         } catch (final ClientException | ServiceUnavailableException | IOException e) {
             Notifications.failure(e, "The policy could not be read.");
@@ -261,11 +264,11 @@ public class PoliciesView extends VerticalLayout {
             return;
         }
 
-        final PolicyForm form = new PolicyForm(name, true, PolicyJson.pretty(json),
+        final PolicyForm form = new PolicyForm(name, true, PolicyJson.pretty(policy.getJson()),
                 details.getDescription(), details.getNotes(), policyEditorUrl, rules);
         final Dialog dialog = form.dialog("Edit Policy");
-        // What Philter has now, so a second Save after the details failed does not replace it again.
-        final String[] saved = {json};
+        // The policy as this editor last read or wrote it, and its tag, sent with the next save.
+        final Saved[] saved = {new Saved(policy.getJson(), details.getDescription(), details.getNotes(), policy.getETag())};
 
         final Button save = new Button("Save", e -> {
             form.clearErrors();
@@ -275,22 +278,16 @@ public class PoliciesView extends VerticalLayout {
                 return;
             }
             try {
-                // Only replace the policy when its JSON changed, so a details-only edit adds no revision.
-                if (!PolicyJson.sameJson(saved[0], form.json.getValue())) {
-                    client.replacePolicy(name, form.json.getValue());
-                    saved[0] = form.json.getValue();
-                }
-            } catch (final ClientException ex) {
-                form.jsonError(replaceFailure(ex));
-                return;
-            } catch (final IOException | ServiceUnavailableException ex) {
-                Notifications.failure(ex, "The policy could not be saved.");
-                return;
-            }
-            if (saveDetails(name, details.getDescription(), details.getNotes(), form, "The policy was saved, but")) {
+                saved[0] = saveEdit((json, description, notes, eTag) ->
+                                client.replacePolicy(name, json, description, notes, eTag, null),
+                        saved[0], form.json.getValue(), form.description.getValue(), form.notes.getValue());
                 dialog.close();
                 refresh();
                 Notifications.success("Policy updated.");
+            } catch (final ClientException ex) {
+                form.jsonError(replaceFailure(ex));
+            } catch (final IOException | ServiceUnavailableException ex) {
+                Notifications.failure(ex, "The policy could not be saved.");
             }
         });
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -354,7 +351,9 @@ public class PoliciesView extends VerticalLayout {
                 return;
             }
             try {
-                client.savePolicy(name, form.json.getValue());
+                // The policy, description, and notes are created in one request, so a refusal creates nothing.
+                client.savePolicy(name, form.json.getValue(), ViewSupport.change("", form.description.getValue()),
+                        ViewSupport.change("", form.notes.getValue()));
             } catch (final ClientException ex) {
                 if ("policy_exists".equals(ex.getReason())) {
                     form.nameError("You already have a policy with this name.");
@@ -366,13 +365,9 @@ public class PoliciesView extends VerticalLayout {
                 Notifications.failure(ex, "The policy could not be created.");
                 return;
             }
-            // Create does not take a description or notes; Philter sets them through the details call.
-            final boolean detailsSaved = saveDetails(name, "", "", form, "The policy was created, but");
             dialog.close();
             refresh();
-            if (detailsSaved) {
-                Notifications.success("Policy created.");
-            }
+            Notifications.success("Policy created.");
         });
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         dialog.getFooter().add(ViewSupport.cancel(dialog), save);
@@ -380,26 +375,31 @@ public class PoliciesView extends VerticalLayout {
 
     }
 
+    /** A policy as an editor last read or wrote it: its JSON, description, notes, and entity tag. */
+    record Saved(String json, String description, String notes, String eTag) {
+    }
+
+    /** Replaces a policy and its details in one request, refused when the policy changed since {@code eTag}. */
+    interface PolicyWriter {
+        String replace(String json, String description, String notes, String eTag) throws IOException;
+    }
+
     /**
-     * Saves the description and notes if they changed. Reports a failure and returns {@code false}, so
-     * the caller can keep the dialog open, unless the policy itself was just created.
+     * Saves an edit as one request, only if the policy is still as the editor read it: the JSON, and the description
+     * and notes when they changed, with the tag from {@code saved}. Nothing is sent when nothing changed. Returns the
+     * policy as written, with the tag Philter returned, for the next save from the same editor.
      */
-    private boolean saveDetails(final String name, final String description, final String notes,
-                                final PolicyForm form, final String failurePrefix) {
-        final String newDescription = ViewSupport.change(description, form.description.getValue());
-        final String newNotes = ViewSupport.change(notes, form.notes.getValue());
-        if (newDescription == null && newNotes == null) {
-            return true;
+    static Saved saveEdit(final PolicyWriter writer, final Saved saved, final String json, final String description,
+                          final String notes) throws IOException {
+        final String newDescription = ViewSupport.change(saved.description(), description);
+        final String newNotes = ViewSupport.change(saved.notes(), notes);
+        if (newDescription == null && newNotes == null && PolicyJson.sameJson(saved.json(), json)) {
+            return saved;
         }
-        try {
-            client.setPolicyDetails(name, newDescription, newNotes);
-            return true;
-        } catch (final ClientException | ServiceUnavailableException | IOException e) {
-            final String reason = e instanceof ClientException refused && refused.getErrorMessage() != null
-                    ? refused.getErrorMessage() : "Philter could not be reached.";
-            Notifications.failure(failurePrefix + " its description and notes were not: " + reason);
-            return false;
-        }
+        // Philter adds a revision only when the JSON changed, so a details-only edit adds none.
+        final String eTag = writer.replace(json, newDescription, newNotes, saved.eTag());
+        return new Saved(json, newDescription == null ? saved.description() : newDescription,
+                newNotes == null ? saved.notes() : newNotes, eTag);
     }
 
     /** Copies a policy, the person's own or a managed one, to a new name. */

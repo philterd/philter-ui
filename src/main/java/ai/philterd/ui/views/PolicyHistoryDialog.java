@@ -18,6 +18,7 @@ package ai.philterd.ui.views;
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.ListOptions;
 import ai.philterd.philter.model.PolicyDiff;
+import ai.philterd.philter.model.PolicyRollbackResponse;
 import ai.philterd.philter.model.PolicyVersionSummary;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
@@ -65,7 +66,10 @@ final class PolicyHistoryDialog {
     void open() {
 
         final List<PolicyVersionSummary> versions;
+        // A live policy's tag as the history opened, so a rollback is refused if the policy changed since.
+        final String eTag;
         try {
+            eTag = deleted ? null : client.getPolicyDetails(name).getEtag();
             // As many as Philter returns in one page, newest first.
             versions = ViewSupport.orEmpty(client.listPolicyVersions(name, null,
                     new ListOptions().offset(0).limit(ViewSupport.rules(client).maximumPageSize())).getItems());
@@ -100,7 +104,7 @@ final class PolicyHistoryDialog {
                 // A deleted policy has no current revision to roll back from, so it is restored instead.
                 grid.addComponentColumn(v -> {
                     final Button rollback = ViewSupport.button("Roll Back", VaadinIcon.BACKWARDS,
-                            "Roll back to revision " + v.getRevision(), () -> openRollback(v.getRevision(), dialog));
+                            "Roll back to revision " + v.getRevision(), () -> openRollback(v.getRevision(), eTag, dialog));
                     rollback.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
                     if (v.getRevision() == latest) {
                         rollback.setEnabled(false);
@@ -131,7 +135,7 @@ final class PolicyHistoryDialog {
         }
     }
 
-    private void openRollback(final int revision, final Dialog history) {
+    private void openRollback(final int revision, final String eTag, final Dialog history) {
 
         final Dialog dialog = new Dialog();
         dialog.setWidth("450px");
@@ -140,7 +144,8 @@ final class PolicyHistoryDialog {
 
         final Button rollback = new Button("Roll Back", e -> {
             try {
-                final int created = client.rollbackPolicy(name, revision).getRevision();
+                final int created = rollback((policy, number, tag) -> client.rollbackPolicy(policy, number, tag, null),
+                        name, revision, eTag).getRevision();
                 dialog.close();
                 history.close();
                 onChange.run();
@@ -236,6 +241,17 @@ final class PolicyHistoryDialog {
             return element == null ? "" : "null";
         }
         return element.isJsonPrimitive() ? element.getAsString() : element.toString();
+    }
+
+    /** Rolls a policy back, refused when it changed since {@code eTag}, so a rollback can be tested without Philter. */
+    interface Rollback {
+        PolicyRollbackResponse rollback(String name, int revision, String eTag) throws IOException;
+    }
+
+    /** Rolls back to {@code revision} only if the policy is still at {@code eTag}, the tag from when the history opened. */
+    static PolicyRollbackResponse rollback(final Rollback call, final String name, final int revision, final String eTag)
+            throws IOException {
+        return call.rollback(name, revision, eTag);
     }
 
     /** Reads a revision of a deleted policy and saves a policy, so a restore can be tested without Philter. */

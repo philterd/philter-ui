@@ -16,6 +16,7 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.DeletedPolicy;
+import ai.philterd.philter.model.PolicyRollbackResponse;
 import ai.philterd.philter.model.PolicyVersionSummary;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
@@ -27,6 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -151,6 +154,96 @@ class PoliciesViewTest {
         assertEquals("jordan", PolicyHistoryDialog.author(version));
         version.setAuthor(null);
         assertEquals("", PolicyHistoryDialog.author(version));
+    }
+
+    /** A policy in Philter that refuses a write at the wrong tag, as Philter does. */
+    private static final class Policy implements PoliciesView.PolicyWriter {
+
+        String json = "{\"identifiers\":{}}";
+        String description = "Claims";
+        String notes = "";
+        int version = 1;
+        final List<String> writes = new ArrayList<>();
+
+        String eTag() {
+            return version + "-tag";
+        }
+
+        @Override
+        public String replace(final String newJson, final String newDescription, final String newNotes,
+                              final String expectedETag) {
+            writes.add(newJson + " | " + newDescription + " | " + newNotes + " | " + expectedETag);
+            if (expectedETag != null && !expectedETag.equals(eTag())) {
+                throw new ClientException("HTTP 409", 409, "The policy changed since it was read.", "policy_changed");
+            }
+            json = newJson;
+            description = newDescription == null ? description : newDescription;
+            notes = newNotes == null ? notes : newNotes;
+            version++;
+            return eTag();
+        }
+
+        PoliciesView.Saved read() {
+            return new PoliciesView.Saved(json, description, notes, eTag());
+        }
+    }
+
+    @Test
+    void anEditIsSavedInOneRequestWithTheTagItWasReadAt() throws IOException {
+        final Policy philter = new Policy();
+        final PoliciesView.Saved saved = PoliciesView.saveEdit(philter, philter.read(),
+                "{\"identifiers\":{\"ssn\":{}}}", "Claims, 2026", "Reviewed.");
+        // The JSON, description, and notes went in one request, with the tag from the read.
+        assertEquals(List.of("{\"identifiers\":{\"ssn\":{}}} | Claims, 2026 | Reviewed. | 1-tag"), philter.writes);
+        assertEquals("2-tag", saved.eTag());
+        assertEquals("Claims, 2026", philter.description);
+    }
+
+    @Test
+    void aSecondSaveFromTheSameEditorUsesTheNewTag() throws IOException {
+        final Policy philter = new Policy();
+        final PoliciesView.Saved first = PoliciesView.saveEdit(philter, philter.read(), philter.json, "Claims", "One.");
+        final PoliciesView.Saved second = PoliciesView.saveEdit(philter, first, philter.json, "Claims", "Two.");
+        assertEquals("3-tag", second.eTag());
+        assertEquals("Two.", philter.notes);
+        // Only the notes changed, so the description is not sent.
+        assertEquals(philter.json + " | null | Two. | 2-tag", philter.writes.get(1));
+    }
+
+    @Test
+    void anEditOfAPolicyChangedSinceItWasReadIsRefused() {
+        final Policy philter = new Policy();
+        final PoliciesView.Saved opened = philter.read();
+        // Someone else saved the policy after the editor opened it.
+        philter.replace("{\"identifiers\":{\"email\":{}}}", null, null, opened.eTag());
+
+        final ClientException refused = assertThrows(ClientException.class, () -> PoliciesView.saveEdit(philter, opened,
+                "{\"identifiers\":{\"ssn\":{}}}", "Mine", ""));
+        assertEquals("{\"identifiers\":{\"email\":{}}}", philter.json);
+        assertEquals("Claims", philter.description);
+        assertEquals("The policy changed since you opened it. Cancel and edit it again to see the latest.",
+                PoliciesView.replaceFailure(refused));
+    }
+
+    @Test
+    void anUnchangedEditSendsNothing() throws IOException {
+        final Policy philter = new Policy();
+        final PoliciesView.Saved opened = philter.read();
+        assertSame(opened, PoliciesView.saveEdit(philter, opened, "{ \"identifiers\" : {} }", " Claims ", ""));
+        assertEquals(List.of(), philter.writes);
+    }
+
+    @Test
+    void aRollbackSendsTheTagFromWhenTheHistoryOpened() throws IOException {
+        final List<String> calls = new ArrayList<>();
+        final PolicyRollbackResponse response = PolicyHistoryDialog.rollback((name, revision, eTag) -> {
+            calls.add(name + " " + revision + " " + eTag);
+            return new PolicyRollbackResponse();
+        }, "claims", 3, "7-0123456789abcdef");
+        assertEquals(List.of("claims 3 7-0123456789abcdef"), calls);
+        assertEquals(PolicyRollbackResponse.class, response.getClass());
+        assertEquals("The policy changed while it was being rolled back. Open its history again and retry.",
+                PolicyHistoryDialog.rollbackFailure(refused(409, "Changed.", "policy_changed")));
     }
 
 }
