@@ -148,4 +148,30 @@ class AccountViewTest {
         assertEquals("Redaction failed", AccountView.eventLabel("DOCUMENT_REDACTION_FAILED"));
     }
 
+    @Test
+    void sessionsNameTheirBrowserAndSystem() {
+        assertEquals("Firefox on Windows", AccountView.device(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0"));
+        assertEquals("Chrome on macOS", AccountView.device("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"));
+        assertEquals("Edge on Windows", AccountView.device("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0"));
+        assertEquals("Safari on iOS", AccountView.device("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) "
+                + "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"));
+        assertEquals("Chrome on Android", AccountView.device("Mozilla/5.0 (Linux; Android 14; Pixel 8) "
+                + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36"));
+        assertEquals("Java HTTP client", AccountView.device("Java-http-client/21.0.4"));
+        // A client that is not a browser is shown as it named itself.
+        assertEquals("curl/8.7.1", AccountView.device("curl/8.7.1"));
+        assertEquals("", AccountView.device(null));
+    }
+
+    @Test
+    void signingOutOtherSessionsSaysHowMany() {
+        assertEquals("1 other session signed out.", AccountView.otherSessionsSignedOut(1));
+        assertEquals("3 other sessions signed out.", AccountView.otherSessionsSignedOut(3));
+        assertEquals("There were no other sessions to sign out.", AccountView.otherSessionsSignedOut(0));
+        assertEquals("This session", AccountView.THIS_SESSION);
+    }
+
 }

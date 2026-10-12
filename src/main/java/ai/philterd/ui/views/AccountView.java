@@ -310,35 +310,43 @@ public class AccountView extends VerticalLayout {
                 options -> apiKeys(client.getApiKeys(null, options.session(false))));
         keys.setAllRowsVisible(true);
 
+        signIns.addColumn(key -> device(key.getUserAgent())).setHeader("Device").setAutoWidth(true).setResizable(true)
+                .setTooltipGenerator(ApiKey::getUserAgent);
+        signIns.addColumn(key -> key.getClientAddress() == null ? "" : key.getClientAddress()).setHeader("Address")
+                .setAutoWidth(true).setResizable(true);
         signIns.addColumn(key -> ViewSupport.utc(key.getCreated())).setHeader("Signed in").setAutoWidth(true)
                 .setSortProperty("created");
         signIns.addColumn(key -> ViewSupport.utc(key.getLastUsedAt())).setHeader("Last used").setAutoWidth(true);
         signIns.addColumn(key -> ViewSupport.utc(key.getExpiresAt())).setHeader("Ends by").setAutoWidth(true);
-        signIns.addComponentColumn(key -> isThisSession(key)
-                        ? new Span("This session")
+        signIns.addComponentColumn(key -> key.isCurrent()
+                        ? new Span(THIS_SESSION)
                         : revokeButton(key, "Sign out", "Sign out session " + key.getPrefix()))
                 .setHeader("").setAutoWidth(true).setFlexGrow(0);
         final ListingProvider<ApiKey> sessionListing = ListingProvider.bind(signIns,
                 options -> apiKeys(client.getApiKeys(null, options.session(true))));
         signIns.setAllRowsVisible(true);
 
+        final Button signOutOthers = new Button("Sign Out Other Sessions", VaadinIcon.SIGN_OUT.create(),
+                e -> openSignOutOthers());
+        signOutOthers.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        signOutOthers.setTooltipText("Sign out every session but this one. Your API keys keep working.");
+        final HorizontalLayout sessionsBar = sessionListing.toolbar(signIns, null, "session", "sessions");
+        sessionsBar.add(signOutOthers);
+
         final VerticalLayout layout = new VerticalLayout(about, keyListing.toolbar(keys, null, "key", "keys"), keys,
                 new H3("Sign-in Sessions"),
                 new Paragraph("Each sign-in, here or in another program that signs in through Philter, has its own "
-                        + "session. Sign out a session you no longer use; to end this one, sign out of Philter UI."),
-                sessionListing.toolbar(signIns, null, "session", "sessions"), signIns);
+                        + "session, shown with the device and address it signed in from. Sign out a session you do "
+                        + "not recognize or no longer use; to end this one, sign out of Philter UI."),
+                sessionsBar, signIns);
         layout.setSizeFull();
         return layout;
 
     }
 
-    private boolean isThisSession(final ApiKey key) {
-        return key.getId() != null && key.getId().equals(user.getSessionKeyId());
-    }
-
     private Component revokeButton(final ApiKey key, final String text, final String label) {
         // Philter refuses to revoke the key making the request; this session ends by signing out.
-        if (isThisSession(key)) {
+        if (key.isCurrent()) {
             return new Span();
         }
         final Button revoke = ViewSupport.button(text, VaadinIcon.TRASH, label, () -> openRevoke(key, text));
@@ -367,6 +375,30 @@ public class AccountView extends VerticalLayout {
         });
         revoke.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
         dialog.getFooter().add(ViewSupport.cancel(dialog), revoke);
+        dialog.open();
+
+    }
+
+    private void openSignOutOthers() {
+
+        final Dialog dialog = new Dialog();
+        dialog.setWidth("450px");
+        dialog.add(new H3("Sign Out Other Sessions"), new Paragraph("Sign out every session but this one? "
+                + "Wherever they are used, they must sign in again. You stay signed in here, and your API keys keep "
+                + "working."));
+
+        final Button signOut = new Button("Sign Out Others", e -> {
+            try {
+                final long revoked = client.signOutOtherSessions();
+                dialog.close();
+                signIns.getDataProvider().refreshAll();
+                Notifications.success(otherSessionsSignedOut(revoked));
+            } catch (final ClientException | ServiceUnavailableException | IOException ex) {
+                Notifications.failure(ex, "The other sessions could not be signed out.");
+            }
+        });
+        signOut.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+        dialog.getFooter().add(ViewSupport.cancel(dialog), signOut);
         dialog.open();
 
     }
@@ -569,6 +601,77 @@ public class AccountView extends VerticalLayout {
     }
 
     // Logic the tests cover.
+
+    /** How the session in use is marked in the sessions grid, in place of its sign-out button. */
+    static final String THIS_SESSION = "This session";
+
+    /** What signing out the other sessions did. */
+    static String otherSessionsSignedOut(final long revoked) {
+        if (revoked == 0) {
+            return "There were no other sessions to sign out.";
+        }
+        return (revoked == 1 ? "1 other session" : revoked + " other sessions") + " signed out.";
+    }
+
+    /**
+     * A session's user agent in words, such as "Firefox on Windows", or the user agent itself when it is not a
+     * browser this recognizes. Blank when the client sent none.
+     */
+    static String device(final String userAgent) {
+        if (userAgent == null || userAgent.isBlank()) {
+            return "";
+        }
+        if (userAgent.startsWith("Java-http-client")) {
+            return "Java HTTP client";
+        }
+        final String browser = browser(userAgent);
+        final String system = operatingSystem(userAgent);
+        if (browser == null) {
+            return userAgent;
+        }
+        return system == null ? browser : browser + " on " + system;
+    }
+
+    private static String browser(final String ua) {
+        if (ua.contains("Edg/")) {
+            return "Edge";
+        }
+        if (ua.contains("OPR/")) {
+            return "Opera";
+        }
+        if (ua.contains("Firefox/") || ua.contains("FxiOS/")) {
+            return "Firefox";
+        }
+        if (ua.contains("Chrome/") || ua.contains("CriOS/")) {
+            return "Chrome";
+        }
+        if (ua.contains("Safari/") && ua.contains("Version/")) {
+            return "Safari";
+        }
+        return null;
+    }
+
+    private static String operatingSystem(final String ua) {
+        if (ua.contains("iPhone") || ua.contains("iPad")) {
+            return "iOS";
+        }
+        if (ua.contains("Android")) {
+            return "Android";
+        }
+        if (ua.contains("CrOS")) {
+            return "ChromeOS";
+        }
+        if (ua.contains("Windows")) {
+            return "Windows";
+        }
+        if (ua.contains("Mac OS X") || ua.contains("Macintosh")) {
+            return "macOS";
+        }
+        if (ua.contains("Linux")) {
+            return "Linux";
+        }
+        return null;
+    }
 
     /** What is wrong with a scope change, or {@code null}: a session may only remove scopes, and a key needs one. */
     static String scopeChangeProblem(final Set<String> current, final Set<String> selected) {
