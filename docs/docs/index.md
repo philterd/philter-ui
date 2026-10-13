@@ -39,7 +39,7 @@ Serve Philter UI to its users over HTTPS, for example behind a reverse proxy tha
 
 Philter UI can present a client certificate to Philter and trust certificates of your choosing for Philter, without changing trust for the rest of the Java process. Each setting works alone or with the other, and Philter UI uses the same TLS settings for every connection to Philter: signing in, each person's requests, and PDF redaction.
 
-* **Client certificate.** When Philter is behind a load balancer, ingress, or service mesh that requires clients to present a certificate (mutual TLS), set `PHILTER_CLIENT_CERTIFICATE` to a PKCS12 or JKS keystore holding Philter UI's certificate and its private key, and `PHILTER_CLIENT_CERTIFICATE_PASSWORD` to the keystore's password. The private key must use the keystore's password, as it does in a PKCS12 file. To make one from PEM files:
+* **Client certificate.** When Philter requires clients to present a certificate (mutual TLS), either itself with [`SSL_CLIENT_AUTH=need`](https://philterd.github.io/philter/latest/settings.html#client-certificates-mutual-tls) or through a load balancer, ingress, or service mesh in front of it, set `PHILTER_CLIENT_CERTIFICATE` to a PKCS12 or JKS keystore holding Philter UI's certificate and its private key, and `PHILTER_CLIENT_CERTIFICATE_PASSWORD` to the keystore's password. The private key must use the keystore's password, as it does in a PKCS12 file. To make one from PEM files:
 
     ```
     openssl pkcs12 -export -in philter-ui.crt -inkey philter-ui.key -out philter-ui-client.p12

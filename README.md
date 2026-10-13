@@ -35,7 +35,7 @@ java -jar target/philter-ui-4.0.0-SNAPSHOT.jar
 | `PHILTER_TRUST_STORE` | A PKCS12 or JKS trust store holding the certificates Philter UI trusts for Philter, in place of the JVM's defaults. Build it with `keytool -importcert`. | None |
 | `PHILTER_TRUST_STORE_PASSWORD` | The password of `PHILTER_TRUST_STORE`. A PKCS12 trust store needs it. | None |
 
-Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Philter UI verifies Philter's TLS certificate and host name, so a Philter with a self-signed certificate or one from a private certificate authority needs that certificate in `PHILTER_TRUST_STORE`. For a Philter behind a load balancer or service mesh that requires a client certificate, set `PHILTER_CLIENT_CERTIFICATE`. See the [user guide](docs/docs/index.md#client-certificates-and-trust-stores).
+Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Philter UI verifies Philter's TLS certificate and host name, so a Philter with a self-signed certificate or one from a private certificate authority needs that certificate in `PHILTER_TRUST_STORE`. For a Philter that requires a client certificate, either itself ([mutual TLS](https://philterd.github.io/philter/latest/settings.html#client-certificates-mutual-tls)) or through a load balancer or service mesh in front of it, set `PHILTER_CLIENT_CERTIFICATE`. See the [user guide](docs/docs/index.md#client-certificates-and-trust-stores).
 
 ### Docker Compose
 
