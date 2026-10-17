@@ -38,6 +38,7 @@ import ai.philterd.ui.security.SignInMessages;
 import ai.philterd.ui.security.Sessions;
 import ai.philterd.ui.model.PhilterRules;
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.CheckboxGroup;
@@ -219,25 +220,13 @@ public class AccountView extends VerticalLayout {
 
     private void openEnrollMfa() {
 
-        final MfaEnrollment enrollment;
-        try {
-            enrollment = client.startMfaEnrollment();
-        } catch (final ClientException | ServiceUnavailableException | IOException e) {
-            Notifications.failure(e, "Multi-factor authentication could not be started.");
-            return;
-        }
-
-        final Image qrCode = new Image(QrCodes.svgDataUri(enrollment.getOtpauthUri()), "QR code for your authenticator app");
-        qrCode.setWidth("200px");
-        qrCode.setHeight("200px");
+        final PasswordField password = MfaEnrollmentView.passwordField();
         final TextField code = codeField();
 
         final Dialog dialog = new Dialog();
         dialog.setWidth("450px");
         dialog.add(new H3("Set Up Multi-Factor Authentication"),
-                new Paragraph("Scan the QR code with your authenticator app, or type in the setup key, then enter "
-                        + "the code the app shows. You are then signed out, and sign in again with a code."),
-                qrCode, new Paragraph("Setup key: " + MfaEnrollmentView.grouped(enrollment.getSecret())), code);
+                new Paragraph("Enter your current password to start."), password);
 
         final Button confirm = new Button("Confirm", e -> {
             try {
@@ -251,8 +240,33 @@ public class AccountView extends VerticalLayout {
             }
         });
         confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        dialog.getFooter().add(ViewSupport.cancel(dialog), confirm);
+        confirm.setVisible(false);
+
+        final Button start = new Button("Continue");
+        start.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        start.addClickListener(e -> {
+            final MfaEnrollment enrollment = MfaEnrollmentView.startWith(password, client::startMfaEnrollment);
+            if (enrollment == null) {
+                return;
+            }
+
+            final Image qrCode = new Image(QrCodes.svgDataUri(enrollment.getOtpauthUri()), "QR code for your authenticator app");
+            qrCode.setWidth("200px");
+            qrCode.setHeight("200px");
+            dialog.removeAll();
+            dialog.add(new H3("Set Up Multi-Factor Authentication"),
+                    new Paragraph("Scan the QR code with your authenticator app, or type in the setup key, then enter "
+                            + "the code the app shows. You are then signed out, and sign in again with a code."),
+                    qrCode, new Paragraph("Setup key: " + MfaEnrollmentView.grouped(enrollment.getSecret())), code);
+            start.setVisible(false);
+            confirm.setVisible(true);
+            code.focus();
+        });
+        password.addKeyDownListener(Key.ENTER, e -> start.click());
+
+        dialog.getFooter().add(ViewSupport.cancel(dialog), start, confirm);
         dialog.open();
+        password.focus();
 
     }
 

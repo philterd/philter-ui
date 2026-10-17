@@ -19,28 +19,33 @@ import ai.philterd.philter.model.MfaEnrollment;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
+import ai.philterd.philter.model.exceptions.SignInLockedException;
 import ai.philterd.ui.security.Notice;
 import ai.philterd.ui.security.PhilterClients;
 import ai.philterd.ui.security.PhilterUser;
 import ai.philterd.ui.security.Roles;
 import ai.philterd.ui.security.SignInMessages;
 import ai.philterd.ui.security.Sessions;
-import com.vaadin.flow.component.AttachEvent;
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.HasValidation;
 import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Shown when Philter requires MFA and the person has not enrolled: the session key can do nothing else
- * until they do. Confirming revokes the key, so the person then signs in again, with a code.
+ * until they do. Starting takes the current password again, since Philter UI does not keep the one typed at
+ * sign-in. Confirming revokes the key, so the person then signs in again, with a code.
  */
 @Route("mfa-enrollment")
 @PageTitle("Set Up MFA | Philter UI")
@@ -49,18 +54,22 @@ public class MfaEnrollmentView extends StepLayout {
 
     private final transient PhilterClients clients;
     private final transient Sessions sessions;
+    private final PasswordField password = passwordField();
+    private final Button start = new Button("Continue", e -> start());
     private final Image qrCode = new Image();
     private final Paragraph secret = new Paragraph();
     private final TextField code = new TextField("Authentication code");
     private final Button confirm = new Button("Confirm", e -> confirm());
-    private boolean started;
 
     public MfaEnrollmentView(final PhilterClients clients, final Sessions sessions) {
         super(sessions, "Set Up Multi-Factor Authentication",
-                "Philter requires multi-factor authentication. Scan the QR code with your authenticator app, "
-                        + "or type in the setup key, then enter the code the app shows.");
+                "Philter requires multi-factor authentication. Enter your current password, then scan the QR code "
+                        + "with your authenticator app, or type in the setup key, and enter the code the app shows.");
         this.clients = clients;
         this.sessions = sessions;
+
+        password.addKeyDownListener(Key.ENTER, e -> start());
+        start.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         qrCode.setWidth("200px");
         qrCode.setHeight("200px");
@@ -69,18 +78,11 @@ public class MfaEnrollmentView extends StepLayout {
         code.setAllowedCharPattern("[0-9]");
         code.addKeyDownListener(Key.ENTER, e -> confirm());
         confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-        addStep(qrCode, secret, code, confirm);
-    }
-
-    @Override
-    protected void onAttach(final AttachEvent event) {
-        super.onAttach(event);
-        // Starting again replaces an unconfirmed secret, so start once per page rather than on every attach.
-        if (!started) {
-            started = true;
-            start();
+        for (final Component enrolling : List.of(qrCode, secret, code, confirm)) {
+            enrolling.setVisible(false);
         }
+
+        addStep(password, start, qrCode, secret, code, confirm);
     }
 
     private void start() {
@@ -89,16 +91,19 @@ public class MfaEnrollmentView extends StepLayout {
             sessions.end(Notice.ENDED);
             return;
         }
-        try {
-            final MfaEnrollment enrollment = clients.forUser(user).startMfaEnrollment();
-            qrCode.setSrc(QrCodes.svgDataUri(enrollment.getOtpauthUri()));
-            qrCode.setAlt("QR code for your authenticator app");
-            secret.setText("Setup key: " + grouped(enrollment.getSecret()));
-        } catch (final ClientException e) {
-            showProblem(startFailure(e));
-        } catch (final IOException | ServiceUnavailableException e) {
-            showProblem(SignInMessages.UNAVAILABLE);
+        final MfaEnrollment enrollment = startWith(password, clients.forUser(user)::startMfaEnrollment);
+        if (enrollment == null) {
+            return;
         }
+        qrCode.setSrc(QrCodes.svgDataUri(enrollment.getOtpauthUri()));
+        qrCode.setAlt("QR code for your authenticator app");
+        secret.setText("Setup key: " + grouped(enrollment.getSecret()));
+        password.setVisible(false);
+        start.setVisible(false);
+        for (final Component enrolling : List.of(qrCode, secret, code, confirm)) {
+            enrolling.setVisible(true);
+        }
+        code.focus();
     }
 
     private void confirm() {
@@ -116,20 +121,52 @@ public class MfaEnrollmentView extends StepLayout {
                 // Enrollment was completed, or MFA turned off, by another request meanwhile.
                 sessions.end(Notice.ENDED);
             } else {
-                code.setErrorMessage(confirmFailure(e));
-                code.setInvalid(true);
+                invalid(code, confirmFailure(e));
             }
         } catch (final IOException | ServiceUnavailableException e) {
-            code.setErrorMessage(SignInMessages.UNAVAILABLE);
-            code.setInvalid(true);
+            invalid(code, SignInMessages.UNAVAILABLE);
         }
     }
 
-    private void showProblem(final String message) {
-        secret.setText(message);
-        qrCode.setVisible(false);
-        code.setEnabled(false);
-        confirm.setEnabled(false);
+    private static void invalid(final HasValidation field, final String message) {
+        field.setErrorMessage(message);
+        field.setInvalid(true);
+    }
+
+    /** The current password asked for before enrollment starts. Its value is cleared when it is sent to Philter. */
+    static PasswordField passwordField() {
+        final PasswordField password = new PasswordField("Current password");
+        password.setHelperText("A wrong password counts toward locking your sign-in.");
+        password.setWidthFull();
+        return password;
+    }
+
+    /** Starts enrollment, as {@code PhilterClient.startMfaEnrollment(String)} does. */
+    @FunctionalInterface
+    interface EnrollmentStart {
+        MfaEnrollment start(String password) throws IOException;
+    }
+
+    /**
+     * Starts enrollment with the password typed into {@code password}, clearing the field so Philter UI does not
+     * keep it. Returns {@code null} when it did not start, with the reason shown on the field.
+     */
+    static MfaEnrollment startWith(final PasswordField password, final EnrollmentStart start) {
+        if (password.isEmpty()) {
+            invalid(password, ENTER_PASSWORD);
+            return null;
+        }
+        // Cleared before the call: clearing re-validates the field, which would hide the error shown for a refusal.
+        final String current = password.getValue();
+        password.clear();
+        try {
+            return start.start(current);
+        } catch (final ClientException e) {
+            invalid(password, startFailure(e));
+        } catch (final IOException | ServiceUnavailableException e) {
+            invalid(password, SignInMessages.UNAVAILABLE);
+        }
+        return null;
     }
 
     /** The secret in groups of four, which is easier to type. */
@@ -138,14 +175,31 @@ public class MfaEnrollmentView extends StepLayout {
     }
 
     static final String INVALID_CODE = "That code is not valid. Check your authenticator app and try again.";
+    static final String ENTER_PASSWORD = "Enter your current password.";
+    static final String NO_PASSWORD = "You do not have a password, and multi-factor authentication protects signing in "
+            + "with one. An administrator must set your password first.";
 
     /** Why Philter would not start enrollment. */
     static String startFailure(final ClientException e) {
+        if (e instanceof SignInLockedException locked) {
+            return "Sign-in is locked after too many incorrect passwords. Try again in "
+                    + SignInMessages.retryIn(locked.getRetryAfterSeconds()) + ".";
+        }
+        if (ErrorReasons.WRONG_PASSWORD.equals(e.getReason())) {
+            return ChangePasswordView.WRONG_CURRENT_PASSWORD;
+        }
+        if ("password".equals(e.getField())) {
+            return ENTER_PASSWORD;
+        }
         if (ErrorReasons.MFA_UNAVAILABLE.equals(e.getReason())) {
             return "Multi-factor authentication is not available. An administrator can make it available.";
         }
         if (ErrorReasons.MFA_ALREADY_ENROLLED.equals(e.getReason())) {
             return "You have already set up multi-factor authentication.";
+        }
+        // Philter gives no reason for the remaining conflict: the user has no password.
+        if (e.getStatusCode() == 409 && (e.getReason() == null || ErrorReasons.CONFLICT.equals(e.getReason()))) {
+            return NO_PASSWORD;
         }
         return e.getErrorMessage() == null ? "Multi-factor authentication could not be started." : e.getErrorMessage();
     }

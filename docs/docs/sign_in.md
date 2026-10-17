@@ -29,10 +29,11 @@ Philter sets the password rules, and Philter UI reads them from Philter and show
 
 MFA uses time-based one-time codes from a standard authenticator app. An administrator makes it available, or requires it, with Philter's `mfaAvailable` and `mfaRequired` settings.
 
-* **Enrolling when MFA is required.** If Philter requires MFA and you have not enrolled, Philter UI shows a QR code and a setup key after you sign in. Scan the code (or type the key) into your authenticator app and enter the code it shows. Philter then ends that session, and you sign in again, this time with a code.
+* **Enrolling when MFA is required.** If Philter requires MFA and you have not enrolled, Philter UI asks for your current password again after you sign in, then shows a QR code and a setup key. Philter UI does not keep the password you signed in with. Scan the code (or type the key) into your authenticator app and enter the code it shows. Philter then ends that session, and you sign in again, this time with a code.
 * **Signing in.** Enter your password, then a code from your authenticator app.
 * **A wrong code** ends that sign-in attempt: sign in again with your password and try a new code. Enter the code within five minutes of your password, or the attempt ends the same way.
 * **Each code works once.** A code that was already used counts as a wrong code, so if a code was just used, wait for the app to show the next one.
+* **Wrong passwords when enrolling** count toward the same lockout as [failed sign-ins](#failed-sign-ins), and while you are locked out Philter UI says how long to wait before trying again.
 * **Too many wrong codes** (five in a row) lock your MFA until an administrator unlocks it or removes your enrollment. Wrong codes entered when removing MFA on My Account count too.
 * **Lost authenticator:** an administrator removes your enrollment with **Disable MFA** on the [Admin](dashboard.md#users) page, and you enroll again.
 

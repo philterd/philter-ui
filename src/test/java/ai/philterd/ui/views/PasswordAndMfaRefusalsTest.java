@@ -16,6 +16,7 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.SignInLockedException;
 import ai.philterd.ui.security.SignInMessages;
 import org.junit.jupiter.api.Test;
 
@@ -50,6 +51,17 @@ class PasswordAndMfaRefusalsTest {
         assertEquals("You have already set up multi-factor authentication.",
                 MfaEnrollmentView.startFailure(refused(409, "mfa_already_enrolled", null)));
         assertEquals("Philter's message.", MfaEnrollmentView.startFailure(refused(500, "internal_error", null)));
+
+        assertEquals(ChangePasswordView.WRONG_CURRENT_PASSWORD,
+                MfaEnrollmentView.startFailure(refused(403, "wrong_password", null)));
+        assertEquals(MfaEnrollmentView.ENTER_PASSWORD,
+                MfaEnrollmentView.startFailure(refused(400, "invalid_request", "password")));
+        // Philter gives no reason when the user has no password.
+        assertEquals(MfaEnrollmentView.NO_PASSWORD, MfaEnrollmentView.startFailure(refused(409, null, null)));
+        assertEquals("Sign-in is locked after too many incorrect passwords. Try again in 15 minutes.",
+                MfaEnrollmentView.startFailure(new SignInLockedException("Locked.", 900)));
+        assertEquals("Sign-in is locked after too many incorrect passwords. Try again in a minute.",
+                MfaEnrollmentView.startFailure(new SignInLockedException("Locked.", (Integer) null)));
 
         assertEquals(MfaEnrollmentView.INVALID_CODE, MfaEnrollmentView.confirmFailure(refused(400, "invalid_code", null)));
         assertEquals(MfaEnrollmentView.INVALID_CODE, MfaEnrollmentView.confirmFailure(refused(400, "invalid_request", "code")));

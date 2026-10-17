@@ -40,7 +40,7 @@ public final class SignInMessages {
 
     public static String forFailure(final Exception exception) {
         if (exception instanceof SignInLockedException locked) {
-            return "Too many failed sign-ins for this username. Try again in " + wait(locked.getRetryAfterSeconds()) + ".";
+            return "Too many failed sign-ins for this username. Try again in " + retryIn(locked.getRetryAfterSeconds()) + ".";
         }
         if (exception instanceof SignInRateLimitedException) {
             return RATE_LIMITED;
@@ -69,7 +69,8 @@ public final class SignInMessages {
         return "Sign-in failed. Try again later.";
     }
 
-    private static String wait(final Integer seconds) {
+    /** How long to wait, from Philter's {@code Retry-After}, in words: "a minute" or "N minutes". */
+    public static String retryIn(final Integer seconds) {
         if (seconds == null || seconds <= 60) {
             return "a minute";
         }
