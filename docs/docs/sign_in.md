@@ -39,7 +39,7 @@ MFA uses time-based one-time codes from a standard authenticator app. An adminis
 
 ## Failed sign-ins
 
-After repeated failed sign-ins for a username (5 within 15 minutes by default), Philter locks that username (for 15 minutes by default), and sign-in is refused even with the correct password. The attempt that sets the lock is reported as an incorrect password; later attempts say the username is locked. The lock clears on its own. Philter also limits how many sign-in attempts each address can make per minute; Philter UI passes your browser's address to Philter for this (see [Client addresses](index.md#client-addresses)). Philter UI says how long to wait: a minute for the address limit, and the full lockout period for a locked username, which may be longer than what remains of it.
+After repeated failed sign-ins for a username (5 within 15 minutes by default), Philter locks that username (for 15 minutes by default), and sign-in is refused even with the correct password. The attempt that sets the lock is reported as an incorrect password; later attempts say the username is locked. The lock clears on its own, or an administrator can clear it sooner with **Clear sign-in lock** on the [Users](dashboard.md#users) page. Philter also limits how many sign-in attempts each address can make per minute; Philter UI passes your browser's address to Philter for this (see [Client addresses](index.md#client-addresses)). Philter UI says how long to wait: a minute for the address limit, and the full lockout period for a locked username, which may be longer than what remains of it.
 
 ## Sessions
 

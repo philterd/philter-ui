@@ -34,6 +34,10 @@ final class Notifications {
         show(message, NotificationVariant.LUMO_SUCCESS);
     }
 
+    static void info(final String message) {
+        show(message, NotificationVariant.LUMO_PRIMARY);
+    }
+
     static void warning(final String message) {
         show(message, NotificationVariant.LUMO_WARNING);
     }

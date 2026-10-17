@@ -117,6 +117,15 @@ class AdminViewTest {
     }
 
     @Test
+    void aConflictMeansTheSignInWasNotLocked() {
+        assertTrue(AdminView.signInNotLocked(new ClientException("conflict", 409, "The user's sign-in is not locked.",
+                "conflict")));
+        assertFalse(AdminView.signInNotLocked(new ClientException("not found", 404, "User not found.", "not_found")));
+        assertFalse(AdminView.signInNotLocked(new ClientException("forbidden", 403, "An administrator is required.",
+                "admin_required")));
+    }
+
+    @Test
     void auditRangesAreWholeDaysUpToThirtyOne() {
         final LocalDate day = LocalDate.of(2026, 10, 1);
         assertNull(AdminView.auditRangeProblem(day, day, 30));

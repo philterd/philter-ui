@@ -142,11 +142,12 @@ Each user's actions menu has:
 * **Edit email** sets, changes, or removes a user's email address; leave the field empty to remove it. The address is not used to sign in, so changing it changes nothing else. Philter refuses an address that does not follow the rule above, and the user is left unchanged. Philter refuses to demote the last active administrator.
 * **Sign out everywhere**: ends every sign-in session the user has. Their API keys keep working.
 * **Unlock MFA** for a user locked out after too many wrong codes. Their enrollment is unchanged.
+* **Clear sign-in lock** for a user locked after repeated [failed sign-ins](sign_in.md#failed-sign-ins), so they can sign in again before the lock lapses. The lock returns if failed sign-ins continue. Philter does not report whether a user's sign-in is locked, so the item is always offered; for a user who is not locked, Philter UI says there is nothing to clear.
 * **Disable MFA** for a user who has lost their authenticator. They set MFA up again at their next sign-in if it is required, and otherwise sign in with their password alone until they do. See [Multi-factor authentication](sign_in.md#multi-factor-authentication-mfa).
 * **Deactivate**: the user cannot sign in and their API keys stop working, but the user and their data, including policies and redaction ledgers, are kept. Users are deactivated, never deleted. Philter refuses to deactivate the last active administrator.
 * **Reactivate** restores sign-in and API access with nothing lost.
 
-On your own row only **Unlock MFA** is available, and only when your MFA is locked: change your password, sign out your other sessions, and remove your MFA on [My Account](#my-account). You cannot change your own role or deactivate yourself here. To reset a deactivated user's password or set their role, reactivate them first.
+On your own row only **Clear sign-in lock**, and **Unlock MFA** when your MFA is locked, are available: change your password, sign out your other sessions, and remove your MFA on [My Account](#my-account). You cannot change your own role or deactivate yourself here. To reset a deactivated user's password or set their role, reactivate them first.
 
 ### Settings
 

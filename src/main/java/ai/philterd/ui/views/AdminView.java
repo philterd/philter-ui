@@ -180,6 +180,21 @@ public class AdminView extends VerticalLayout {
                     client.unlockUserMfa(row.getUsername());
                     Notifications.success("MFA unlocked for " + row.getUsername() + ".");
                 }));
+        // Philter does not report whether sign-in is locked, so this is always offered, and a user who is not
+        // locked is reported as information.
+        items.addItem("Clear sign-in lock", e -> confirm("Clear Sign-in Lock", "Clear the sign-in lock on "
+                + row.getUsername() + "? They can sign in again now. The lock returns if failed sign-ins continue.",
+                "Clear lock", false, () -> {
+                    try {
+                        client.unlockUserSignIn(row.getUsername());
+                        Notifications.success("Sign-in lock cleared for " + row.getUsername() + ".");
+                    } catch (final ClientException ex) {
+                        if (!signInNotLocked(ex)) {
+                            throw ex;
+                        }
+                        Notifications.info(row.getUsername() + "'s sign-in is not locked. There is nothing to clear.");
+                    }
+                }));
         final MenuItem removeMfa = items.addItem("Disable MFA", e -> confirm("Disable MFA", "Remove "
                 + row.getUsername() + "'s authenticator? Use this for someone who has lost it. They set MFA up "
                 + "again at their next sign-in if it is required, and otherwise sign in with their password alone "
@@ -214,6 +229,11 @@ public class AdminView extends VerticalLayout {
 
         return button;
 
+    }
+
+    /** Whether Philter refused to clear a sign-in lock because the user's sign-in is not locked. */
+    static boolean signInNotLocked(final ClientException e) {
+        return e.getStatusCode() == 409;
     }
 
     private static void disable(final MenuItem item, final boolean condition, final String reason) {
