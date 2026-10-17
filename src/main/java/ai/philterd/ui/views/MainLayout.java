@@ -79,7 +79,7 @@ public class MainLayout extends AppLayout implements BeforeEnterObserver {
         final SideNav redaction = new SideNav("Redaction");
         redaction.addItem(new SideNavItem("Redaction Policies", PoliciesView.class, VaadinIcon.FILE_TEXT.create()));
         redaction.addItem(new SideNavItem("Custom Lists", CustomListsView.class, VaadinIcon.LIST.create()));
-        redaction.addItem(new SideNavItem("Always/Never Redact Lists", RedactListsView.class, VaadinIcon.TAGS.create()));
+        redaction.addItem(new SideNavItem("Redact Lists", RedactListsView.class, VaadinIcon.TAGS.create()));
         redaction.addItem(new SideNavItem("Contexts", ContextsView.class, VaadinIcon.RECORDS.create()));
         redaction.addItem(new SideNavItem("Redaction Ledgers", LedgerView.class, VaadinIcon.BOOK.create()));
         redaction.addItem(new SideNavItem("Legal Holds", HoldsView.class, VaadinIcon.LOCK.create()));
