@@ -34,11 +34,11 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <philter-sdk-java.version>2.0.0-SNAPSHOT</philter-sdk-java.version>
         <!-- Security fixes newer than the Spring Boot managed Tomcat release; matches philter. -->
-        <tomcat.version>11.0.25</tomcat.version>
+        <tomcat.version>11.0.27</tomcat.version>
         <zxing.version>3.5.4</zxing.version>
-        <vaadin.version>25.2.6</vaadin.version>
+        <vaadin.version>25.3.2</vaadin.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
-        <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
+        <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
         <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
     </properties>
     <repositories>
