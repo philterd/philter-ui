@@ -16,10 +16,12 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.CustomList;
+import ai.philterd.philter.model.Limits;
 import ai.philterd.ui.TestRules;
 import ai.philterd.ui.model.Lines;
 import ai.philterd.ui.model.PhilterRules;
 import com.google.gson.Gson;
+import com.vaadin.flow.component.textfield.TextField;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -77,6 +79,31 @@ class CustomListsViewTest {
     void aListWithNoItemsOpensEmpty() {
         // Philter 4.0 stores one when every item sent is whitespace, which it trims only after its empty check.
         assertEquals("", CustomListsView.itemsText(read("{\"items\": [], \"description\": \"\"}")));
+    }
+
+    private static PhilterRules descriptionLimit(final int maximumLength) {
+        final Limits limits = TestRules.limits();
+        limits.getCustomLists().setDescriptionMaxLength(maximumLength);
+        return PhilterRules.of(limits);
+    }
+
+    @Test
+    void theDescriptionIsLimitedToPhiltersLimit() {
+        final TextField description = CustomListsView.descriptionField(TestRules.defaults());
+        assertEquals(200, description.getMaxLength());
+        assertEquals("Up to 200 characters.", description.getHelperText());
+
+        final TextField raised = CustomListsView.descriptionField(descriptionLimit(500));
+        assertEquals(500, raised.getMaxLength());
+        assertEquals("Up to 500 characters.", raised.getHelperText());
+    }
+
+    @Test
+    void theDescriptionFallsBackToPhiltersDefault() {
+        assertEquals(200, CustomListsView.descriptionField(PhilterRules.unknown()).getMaxLength(),
+                "when Philter's limits cannot be read");
+        assertEquals(200, CustomListsView.descriptionField(descriptionLimit(0)).getMaxLength(),
+                "when Philter does not report the description limit");
     }
 
 }

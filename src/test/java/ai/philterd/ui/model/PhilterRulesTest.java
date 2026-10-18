@@ -76,6 +76,7 @@ class PhilterRulesTest {
     void limitsAreThoseReported() {
         assertEquals(100, rules.customListMaximumItems());
         assertEquals(50, rules.customListItemMaximumLength());
+        assertEquals(200, rules.customListDescriptionMaximumLength());
         assertEquals(1000, rules.redactListMaximumTerms());
         assertEquals(100, rules.redactListTermMaximumLength());
         assertEquals(16, rules.webhookSecretMinimumLength());
@@ -116,6 +117,7 @@ class PhilterRulesTest {
         assertNull(unknown.policyNameProblem("has space"));
         assertEquals("Enter a name.", unknown.policyNameProblem(""));
         assertNull(unknown.customListMaximumItems());
+        assertNull(unknown.customListDescriptionMaximumLength());
         assertNull(unknown.maximumDocumentBytes());
         assertNull(unknown.defaultPolicyName());
         assertFalse(unknown.isDefaultPolicy("default"));

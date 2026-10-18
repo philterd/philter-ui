@@ -202,6 +202,17 @@ public final class PhilterRules {
         return limits == null || limits.getCustomLists() == null ? null : limits.getCustomLists().getItemMaxLength();
     }
 
+    /**
+     * The most characters a custom list description can have, or {@code null} when not known. A Philter that does not
+     * report it reads as zero, which is taken as not known rather than as allowing no description.
+     */
+    public Integer customListDescriptionMaximumLength() {
+        if (limits == null || limits.getCustomLists() == null || limits.getCustomLists().getDescriptionMaxLength() <= 0) {
+            return null;
+        }
+        return limits.getCustomLists().getDescriptionMaxLength();
+    }
+
     /** The most terms a redact list can have, or {@code null} when not known. */
     public Integer redactListMaximumTerms() {
         return limits == null || limits.getRedactLists() == null ? null : limits.getRedactLists().getMaxTerms();

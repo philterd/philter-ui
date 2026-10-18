@@ -33,7 +33,7 @@ public final class TestRules {
               "policies": {"nameMaxLength": 50, "namePattern": "^[a-zA-Z0-9_-]+$", "reservedNamePrefix": "managed_",
                            "reservedNames": ["templates"], "defaultPolicyName": "default",
                            "descriptionMaxLength": 200, "notesMaxLength": 1000},
-              "customLists": {"maxItems": 100, "itemMaxLength": 50},
+              "customLists": {"maxItems": 100, "itemMaxLength": 50, "descriptionMaxLength": 200},
               "redactLists": {"maxTerms": 1000, "termMaxLength": 100},
               "contexts": {"maxPerUser": 10, "maxEntries": 10000},
               "webhook": {"secretMinLength": 16},

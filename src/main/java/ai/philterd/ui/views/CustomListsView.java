@@ -57,8 +57,8 @@ import java.util.List;
 @RolesAllowed(Roles.USER)
 public class CustomListsView extends VerticalLayout {
 
-    /** Kept short because Philter takes the description in the query string. */
-    static final int MAXIMUM_DESCRIPTION_LENGTH = 250;
+    /** Philter's default description limit, used when its limits cannot be read. */
+    static final int DEFAULT_DESCRIPTION_LENGTH = 200;
 
     private final transient PhilterClient client;
     private final Grid<CustomListSummary> grid = new Grid<>();
@@ -143,7 +143,7 @@ public class CustomListsView extends VerticalLayout {
         final TextField name = new TextField("List name");
         name.setWidthFull();
         name.setRequired(true);
-        final TextField description = descriptionField();
+        final TextField description = descriptionField(ViewSupport.rules(client));
         final TextArea items = itemsField();
         final Span error = errorSpan();
 
@@ -210,7 +210,7 @@ public class CustomListsView extends VerticalLayout {
         name.setValue(listName);
         name.setReadOnly(true);
         final String originalDescription = list.getDescription() == null ? "" : list.getDescription();
-        final TextField description = descriptionField();
+        final TextField description = descriptionField(ViewSupport.rules(client));
         description.setValue(originalDescription);
         final TextArea items = itemsField();
         items.setValue(listItems);
@@ -321,13 +321,20 @@ public class CustomListsView extends VerticalLayout {
         return e.getErrorMessage() == null ? fallback : e.getErrorMessage();
     }
 
-    private static TextField descriptionField() {
+    static TextField descriptionField(final PhilterRules rules) {
+        final int maximumLength = descriptionLimit(rules);
         final TextField description = new TextField("Description");
         description.setWidthFull();
         description.setPlaceholder("Optional short description");
-        description.setMaxLength(MAXIMUM_DESCRIPTION_LENGTH);
-        description.setHelperText("Up to " + MAXIMUM_DESCRIPTION_LENGTH + " characters.");
+        description.setMaxLength(maximumLength);
+        description.setHelperText("Up to " + maximumLength + " characters.");
         return description;
+    }
+
+    /** The most characters a description can have: Philter's limit, or its default when that is not known. */
+    static int descriptionLimit(final PhilterRules rules) {
+        final Integer maximumLength = rules.customListDescriptionMaximumLength();
+        return maximumLength == null ? DEFAULT_DESCRIPTION_LENGTH : maximumLength;
     }
 
     private TextArea itemsField() {

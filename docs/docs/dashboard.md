@@ -48,7 +48,7 @@ Administrators also see an **All Policies** tab listing every user's policies an
 On the **My Custom Lists** tab you can:
 
 * **See** each list's name, description, and number of terms.
-* **Create** a list with **New Custom List**: a name, an optional description of up to 250 characters, and the items, one per line. Blank lines are ignored. A list needs at least one item, and Philter limits how many items it can have and how long each can be (by default 100 items of up to 50 characters). List names are unique per user and follow Philter's rule for names used in requests: by default they cannot contain `/`, `\`, `;`, `%`, or control characters, or be `.` or `..`.
+* **Create** a list with **New Custom List**: a name, an optional description of up to 200 characters, and the items, one per line. Blank lines are ignored. A list needs at least one item, and Philter limits how many items it can have and how long each can be (by default 100 items of up to 50 characters). List names are unique per user and follow Philter's rule for names used in requests: by default they cannot contain `/`, `\`, `;`, `%`, or control characters, or be `.` or `..`.
 * **Edit** a list's items and description. The description is kept unless you change it, and clearing the field removes it.
 * **Delete** a list.
 
