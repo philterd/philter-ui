@@ -85,6 +85,12 @@ With entity type disambiguation on, the **Disambiguation scope** says what Philt
 
 Administrators also see an **All Contexts** tab listing every user's contexts and their owners, with **View** for each, when Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` is `true`.
 
+## Models
+
+**Models** lists the PhEye models the Philter deployment has in its models directory (`PHEYE_MODELS_DIRECTORY`), through Philter's [models API]({$ philter_docs }/api_and_sdks/api/models_api.html), ordered by name. A policy's ph-eye filter uses a model by giving its name as `phEyeConfiguration.modelPath`, and the model then runs inside Philter. The models are the deployment's, the same for every user. The page needs Philter 4.0.0 or later.
+
+Each model shows its name, the encoder it was trained from, the most words it reads in one call (**Maximum Words**), the most words one detected entity can span (**Maximum Entity Width**), and its size. A value the model's configuration does not give is blank. The list is read each time the page opens, so a model an administrator adds appears without restarting Philter or Philter UI. When the deployment has no models, the page says so instead.
+
 ## Redaction Ledgers
 
 **Redaction Ledgers** shows the tamper-evident, hash-chained record of the redactions made in any context with the [ledger]({$ philter_docs }/redaction/ledgers.html) enabled. On the **My Ledgers** tab you can:
