@@ -234,18 +234,14 @@ public class ContextsView extends VerticalLayout {
         final Dialog dialog = settingsDialog("Edit Context", nameField, disambiguation, scope, ledger);
 
         final Button save = new Button("Save", e -> {
-            final Boolean newDisambiguation = disambiguation.getValue() == details.isEntityTypeDisambiguation()
-                    ? null : disambiguation.getValue();
-            final String newScope = scopeChange(details, scope.getValue());
-            final Boolean newLedger = ledger.getValue() == details.isLedger() ? null : ledger.getValue();
-            if (newDisambiguation == null && newScope == null && newLedger == null) {
-                dialog.close();
-                return;
-            }
             try {
-                client.updateContext(name, newDisambiguation, newScope, newLedger, null);
+                final boolean saved = saveChanges((disambiguationChange, scopeChange, ledgerChange) ->
+                                client.updateContext(name, disambiguationChange, scopeChange, ledgerChange, null),
+                        details, disambiguation.getValue(), scope.getValue(), ledger.getValue());
                 dialog.close();
-                Notifications.success("Context updated.");
+                if (saved) {
+                    Notifications.success("Context updated.");
+                }
             } catch (final ClientException | ServiceUnavailableException | IOException ex) {
                 Notifications.failure(ex, "The context could not be updated.");
             }
@@ -254,6 +250,27 @@ public class ContextsView extends VerticalLayout {
         dialog.getFooter().add(ViewSupport.cancel(dialog), save);
         dialog.open();
 
+    }
+
+    /** Changes a context's settings; {@code null} for each one to keep. */
+    interface ContextUpdate {
+        void send(Boolean entityTypeDisambiguation, String disambiguationScope, Boolean ledger) throws IOException;
+    }
+
+    /**
+     * Sends only the settings that differ from {@code details}, so Philter keeps the others. Returns {@code false},
+     * sending nothing, when none changed.
+     */
+    static boolean saveChanges(final ContextUpdate update, final ContextDetails details, final boolean disambiguation,
+                               final String scope, final boolean ledger) throws IOException {
+        final Boolean newDisambiguation = disambiguation == details.isEntityTypeDisambiguation() ? null : disambiguation;
+        final String newScope = scopeChange(details, scope);
+        final Boolean newLedger = ledger == details.isLedger() ? null : ledger;
+        if (newDisambiguation == null && newScope == null && newLedger == null) {
+            return false;
+        }
+        update.send(newDisambiguation, newScope, newLedger);
+        return true;
     }
 
     private void openClear(final String name) {

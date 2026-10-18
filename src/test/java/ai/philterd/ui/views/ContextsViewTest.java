@@ -23,10 +23,14 @@ import ai.philterd.ui.TestRules;
 import ai.philterd.ui.model.PhilterRules;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ContextsViewTest {
 
@@ -98,6 +102,49 @@ class ContextsViewTest {
         final ContextDetails unset = details(true, null, false);
         assertEquals(DisambiguationScope.DOCUMENT, ContextsView.currentScope(unset));
         assertNull(ContextsView.scopeChange(unset, DisambiguationScope.DOCUMENT));
+    }
+
+    /** Each update the edit dialog sends, as entity type disambiguation, scope, and ledger. */
+    private static final class Updates implements ContextsView.ContextUpdate {
+
+        final List<List<Object>> sent = new ArrayList<>();
+
+        @Override
+        public void send(final Boolean entityTypeDisambiguation, final String disambiguationScope, final Boolean ledger) {
+            sent.add(Arrays.asList(entityTypeDisambiguation, disambiguationScope, ledger));
+        }
+    }
+
+    @Test
+    void savingSendsOnlyTheSettingThatChanged() throws Exception {
+        final ContextDetails current = details(false, DisambiguationScope.DOCUMENT, false);
+
+        final Updates ledger = new Updates();
+        assertTrue(ContextsView.saveChanges(ledger, current, false, DisambiguationScope.DOCUMENT, true));
+        assertEquals(List.of(Arrays.asList(null, null, true)), ledger.sent);
+
+        final Updates disambiguation = new Updates();
+        assertTrue(ContextsView.saveChanges(disambiguation, current, true, DisambiguationScope.DOCUMENT, false));
+        assertEquals(List.of(Arrays.asList(true, null, null)), disambiguation.sent);
+
+        final Updates scope = new Updates();
+        final ContextDetails disambiguating = details(true, DisambiguationScope.DOCUMENT, true);
+        assertTrue(ContextsView.saveChanges(scope, disambiguating, true, DisambiguationScope.CONTEXT, true));
+        assertEquals(List.of(Arrays.asList(null, DisambiguationScope.CONTEXT, null)), scope.sent);
+
+        final Updates off = new Updates();
+        assertTrue(ContextsView.saveChanges(off, disambiguating, true, DisambiguationScope.DOCUMENT, false));
+        assertEquals(List.of(Arrays.asList(null, null, false)), off.sent, "turning a setting off is a change too");
+    }
+
+    @Test
+    void savingWithNothingChangedSendsNothing() throws Exception {
+        final Updates updates = new Updates();
+        assertFalse(ContextsView.saveChanges(updates, details(true, DisambiguationScope.CONTEXT, true), true,
+                DisambiguationScope.CONTEXT, true));
+        assertFalse(ContextsView.saveChanges(updates, details(true, null, false), true,
+                DisambiguationScope.DOCUMENT, false), "Philter's unset scope is document");
+        assertEquals(List.of(), updates.sent);
     }
 
     @Test
