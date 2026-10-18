@@ -62,7 +62,7 @@ import java.util.List;
 public class ContextsView extends VerticalLayout {
 
     private final transient PhilterClient client;
-    private final Grid<String> grid = new Grid<>();
+    private final Grid<ContextSummary> grid = new Grid<>();
     private final Button create = new Button("New Context", VaadinIcon.RECORDS.create(), e -> openCreate());
 
     public ContextsView(final PhilterClients clients) {
@@ -72,18 +72,21 @@ public class ContextsView extends VerticalLayout {
 
         setSizeFull();
 
-        grid.addColumn(name -> name).setHeader("Context").setResizable(true).setSortProperty("name");
-        grid.addComponentColumn(name -> ViewSupport.button("View", VaadinIcon.DOCTOR_BRIEFCASE, "View context " + name,
-                () -> openView(name, null))).setHeader("View").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(name -> ViewSupport.button(null, VaadinIcon.EDIT, "Edit context " + name,
-                () -> openEdit(name))).setHeader("Edit").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(name -> ViewSupport.button(null, VaadinIcon.RECYCLE, "Clear context " + name,
-                () -> openClear(name))).setHeader("Clear").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(name -> ViewSupport.button(null, VaadinIcon.TRASH, "Delete context " + name,
-                () -> openDelete(name))).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
-        final ListingProvider<String> listing = ListingProvider.bind(grid, options -> {
+        summaryColumns(grid);
+        grid.addComponentColumn(context -> ViewSupport.button("View", VaadinIcon.DOCTOR_BRIEFCASE,
+                "View context " + context.getName(), () -> openView(context.getName(), null)))
+                .setHeader("View").setAutoWidth(true).setFlexGrow(0);
+        grid.addComponentColumn(context -> ViewSupport.button(null, VaadinIcon.EDIT, "Edit context " + context.getName(),
+                () -> openEdit(context.getName()))).setHeader("Edit").setAutoWidth(true).setFlexGrow(0);
+        grid.addComponentColumn(context -> ViewSupport.button(null, VaadinIcon.RECYCLE,
+                "Clear context " + context.getName(), () -> openClear(context.getName())))
+                .setHeader("Clear").setAutoWidth(true).setFlexGrow(0);
+        grid.addComponentColumn(context -> ViewSupport.button(null, VaadinIcon.TRASH,
+                "Delete context " + context.getName(), () -> openDelete(context.getName())))
+                .setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
+        final ListingProvider<ContextSummary> listing = ListingProvider.bind(grid, options -> {
             final GetContextsResponse page = client.listContexts(null, options);
-            return new Listing<>(page.getContexts(), page.getTotal()).map(ContextSummary::getName);
+            return new Listing<>(page.getContexts(), page.getTotal());
         });
         grid.setSizeFull();
 
@@ -145,6 +148,13 @@ public class ContextsView extends VerticalLayout {
         layout.setSizeFull();
         return layout;
 
+    }
+
+    /** The columns for what Philter's listing returns for each of the person's contexts, sorted by Philter. */
+    static void summaryColumns(final Grid<ContextSummary> grid) {
+        grid.addColumn(ContextSummary::getName).setHeader("Context").setResizable(true).setSortProperty("name");
+        grid.addColumn(context -> ViewSupport.utc(context.getCreatedAtText())).setHeader("Created").setAutoWidth(true)
+                .setSortProperty("created");
     }
 
     /** Shows a context's settings and its entry counts by filter type. */

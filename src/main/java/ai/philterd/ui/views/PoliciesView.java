@@ -66,7 +66,7 @@ public class PoliciesView extends VerticalLayout {
 
     private final transient PhilterClient client;
     private final PhilterRules rules;
-    private final Grid<String> grid = new Grid<>();
+    private final Grid<PolicySummary> grid = new Grid<>();
     private final Grid<DeletedPolicy> deleted = new Grid<>();
     private final String policyEditorUrl;
 
@@ -79,18 +79,21 @@ public class PoliciesView extends VerticalLayout {
 
         setSizeFull();
 
-        grid.addColumn(name -> name).setHeader("Name").setResizable(true).setSortProperty("name");
-        grid.addComponentColumn(name -> ViewSupport.button("Edit", VaadinIcon.EDIT, "Edit policy " + name,
-                () -> openEdit(name))).setHeader("Edit").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(name -> ViewSupport.button("Duplicate", VaadinIcon.COPY, "Duplicate policy " + name,
-                () -> openCopy(name, "Duplicate Policy", "Enter a name for the copy of " + name + ".")))
+        summaryColumns(grid);
+        grid.addComponentColumn(policy -> ViewSupport.button("Edit", VaadinIcon.EDIT, "Edit policy " + policy.getName(),
+                () -> openEdit(policy.getName()))).setHeader("Edit").setAutoWidth(true).setFlexGrow(0);
+        grid.addComponentColumn(policy -> ViewSupport.button("Duplicate", VaadinIcon.COPY,
+                "Duplicate policy " + policy.getName(), () -> openCopy(policy.getName(), "Duplicate Policy",
+                        "Enter a name for the copy of " + policy.getName() + ".")))
                 .setHeader("Duplicate").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(this::deleteButton).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
-        grid.addComponentColumn(name -> ViewSupport.button("History", VaadinIcon.CLOCK, "Version history of policy " + name,
-                () -> new PolicyHistoryDialog(client, name, false, this::refresh).open()))
+        grid.addComponentColumn(policy -> deleteButton(policy.getName())).setHeader("Delete").setAutoWidth(true)
+                .setFlexGrow(0);
+        grid.addComponentColumn(policy -> ViewSupport.button("History", VaadinIcon.CLOCK,
+                "Version history of policy " + policy.getName(),
+                () -> new PolicyHistoryDialog(client, policy.getName(), false, this::refresh).open()))
                 .setHeader("History").setAutoWidth(true).setFlexGrow(0);
-        final ListingProvider<String> listing = ListingProvider.bind(grid,
-                options -> Listing.of(client.listPolicies(null, options)).map(PolicySummary::getName));
+        final ListingProvider<PolicySummary> listing = ListingProvider.bind(grid,
+                options -> Listing.of(client.listPolicies(null, options)));
         grid.setSizeFull();
 
         final Span description = new Span("A redaction policy defines which types of sensitive information Philter "
@@ -188,6 +191,22 @@ public class PoliciesView extends VerticalLayout {
         layout.setSizeFull();
         return layout;
 
+    }
+
+    /** The columns for what Philter's listing returns for each of the person's policies, sorted by Philter. */
+    static void summaryColumns(final Grid<PolicySummary> grid) {
+        grid.addColumn(PolicySummary::getName).setHeader("Name").setResizable(true).setAutoWidth(true)
+                .setSortProperty("name");
+        grid.addColumn(PoliciesView::description).setHeader("Description").setResizable(true);
+        grid.addColumn(policy -> ViewSupport.utc(policy.getCreatedAtText())).setHeader("Created").setAutoWidth(true)
+                .setSortProperty("created");
+        grid.addColumn(policy -> ViewSupport.utc(policy.getUpdatedAtText())).setHeader("Updated").setAutoWidth(true)
+                .setSortProperty("updated");
+    }
+
+    /** A policy's description, or blank when it has none. */
+    static String description(final PolicySummary policy) {
+        return policy.getDescription() == null ? "" : policy.getDescription();
     }
 
     /** When a policy was deleted, in UTC, or blank when Philter did not record it. */
