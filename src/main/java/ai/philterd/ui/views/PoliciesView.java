@@ -18,8 +18,7 @@ package ai.philterd.ui.views;
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.DeletedPolicy;
 import ai.philterd.philter.model.GetDeletedPoliciesResponse;
-import ai.philterd.philter.model.ManagedPolicySummary;
-import ai.philterd.philter.model.OwnedName;
+import ai.philterd.philter.model.PolicySummary;
 import ai.philterd.philter.model.PolicyDetails;
 import ai.philterd.philter.model.PolicyWithETag;
 import ai.philterd.philter.model.exceptions.ClientException;
@@ -91,7 +90,7 @@ public class PoliciesView extends VerticalLayout {
                 () -> new PolicyHistoryDialog(client, name, false, this::refresh).open()))
                 .setHeader("History").setAutoWidth(true).setFlexGrow(0);
         final ListingProvider<String> listing = ListingProvider.bind(grid,
-                options -> Listing.of(client.listPolicies(null, options)));
+                options -> Listing.of(client.listPolicies(null, options)).map(PolicySummary::getName));
         grid.setSizeFull();
 
         final Span description = new Span("A redaction policy defines which types of sensitive information Philter "
@@ -137,10 +136,10 @@ public class PoliciesView extends VerticalLayout {
 
     private VerticalLayout managedPolicies() {
 
-        final Grid<ManagedPolicySummary> managed = new Grid<>();
-        managed.addColumn(ManagedPolicySummary::getName).setHeader("Name").setResizable(true).setAutoWidth(true)
+        final Grid<PolicySummary> managed = new Grid<>();
+        managed.addColumn(PolicySummary::getName).setHeader("Name").setResizable(true).setAutoWidth(true)
                 .setSortProperty("name");
-        managed.addColumn(ManagedPolicySummary::getDescription).setHeader("Description").setResizable(true);
+        managed.addColumn(PolicySummary::getDescription).setHeader("Description").setResizable(true);
         managed.addComponentColumn(policy -> ViewSupport.button("View", VaadinIcon.FILE_TEXT,
                 "View managed policy " + policy.getName(), () -> openView(policy.getName(), null)))
                 .setHeader("View").setAutoWidth(true).setFlexGrow(0);
@@ -149,7 +148,7 @@ public class PoliciesView extends VerticalLayout {
                 () -> openCopy(policy.getName(), "Create Policy", "Enter a name for your new policy, copied from "
                         + policy.getName() + ".")))
                 .setHeader("Create Policy").setAutoWidth(true).setFlexGrow(0);
-        final ListingProvider<ManagedPolicySummary> listing = ListingProvider.bind(managed,
+        final ListingProvider<PolicySummary> listing = ListingProvider.bind(managed,
                 options -> Listing.of(client.listManagedPolicies(options)));
         managed.setSizeFull();
 
@@ -203,14 +202,14 @@ public class PoliciesView extends VerticalLayout {
 
     private VerticalLayout allPolicies() {
 
-        final Grid<OwnedName> all = new Grid<>();
-        all.addColumn(OwnedName::getName).setHeader("Policy").setResizable(true).setSortProperty("name");
-        all.addColumn(OwnedName::getOwner).setHeader("Owner").setResizable(true);
+        final Grid<PolicySummary> all = new Grid<>();
+        all.addColumn(PolicySummary::getName).setHeader("Policy").setResizable(true).setSortProperty("name");
+        all.addColumn(PolicySummary::getOwner).setHeader("Owner").setResizable(true);
         all.addComponentColumn(policy -> ViewSupport.button("View", VaadinIcon.FILE_TEXT,
                 "View policy " + policy.getName() + " of " + policy.getOwner(),
                 () -> openView(policy.getName(), policy.getOwner())))
                 .setHeader("View").setAutoWidth(true).setFlexGrow(0);
-        final ListingProvider<OwnedName> listing = ListingProvider.bind(all,
+        final ListingProvider<PolicySummary> listing = ListingProvider.bind(all,
                 options -> Listing.of(client.listPoliciesAcrossUsers(options)));
         all.setSizeFull();
 

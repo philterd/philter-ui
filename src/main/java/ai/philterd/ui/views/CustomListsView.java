@@ -16,8 +16,8 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.PhilterClient;
+import ai.philterd.philter.model.CustomList;
 import ai.philterd.philter.model.CustomListSummary;
-import ai.philterd.philter.model.GetListsResponse;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
@@ -191,7 +191,7 @@ public class CustomListsView extends VerticalLayout {
     /** Edits a list's items and description, starting from what Philter has. */
     private void openEdit(final String listName) {
 
-        final GetListsResponse list;
+        final CustomList list;
         try {
             list = client.getList(listName);
         } catch (final ClientException | ServiceUnavailableException | IOException e) {
@@ -208,7 +208,7 @@ public class CustomListsView extends VerticalLayout {
         final TextField description = descriptionField();
         description.setValue(originalDescription);
         final TextArea items = itemsField();
-        items.setValue(String.join("\n", ViewSupport.orEmpty(list.getLists())));
+        items.setValue(String.join("\n", ViewSupport.orEmpty(list.getItems())));
         final Span error = errorSpan();
 
         final Dialog dialog = listDialog("Edit Custom List", error, name, description, items);

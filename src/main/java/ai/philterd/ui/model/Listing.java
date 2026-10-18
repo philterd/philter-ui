@@ -20,6 +20,7 @@ import ai.philterd.philter.model.Page;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * A range of one of Philter's listings and how many items match across every page, as Philter reports it.
@@ -43,6 +44,11 @@ public record Listing<T>(List<T> items, long total) {
 
     public static <T> Listing<T> of(final Page<T> page) {
         return new Listing<>(page.getItems(), page.getTotal());
+    }
+
+    /** This listing with each item transformed by {@code mapper}, keeping the total. */
+    public <R> Listing<R> map(final Function<? super T, ? extends R> mapper) {
+        return new Listing<>(items.stream().<R>map(mapper).toList(), total);
     }
 
     /**

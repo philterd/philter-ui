@@ -20,6 +20,7 @@ import ai.philterd.philter.model.ApiKey;
 import ai.philterd.philter.model.GetApiKeysResponse;
 import ai.philterd.philter.model.ListOptions;
 import ai.philterd.philter.model.Page;
+import ai.philterd.philter.model.PolicySummary;
 import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
@@ -103,17 +104,18 @@ public class DashboardView extends VerticalLayout {
         policy.setItems(query -> {
             final String search = query.getFilter().filter(text -> !text.isBlank()).map(String::trim).orElse(null);
             return ViewSupport.unchecked(() -> Listing.read(query.getOffset(), query.getLimit(), (start, count) ->
-                    Listing.of(client.listPolicies(null, new ListOptions().offset(start).limit(count).search(search)))))
+                    Listing.of(client.listPolicies(null, new ListOptions().offset(start).limit(count).search(search)))
+                            .map(PolicySummary::getName)))
                     .items().stream();
         });
         policy.setPlaceholder("Select a policy");
         policy.setWidth("400px");
         final String defaultPolicy = ViewSupport.rules(client).defaultPolicyName();
         final Listing<String> first = ViewSupport.unchecked(() ->
-                Listing.of(client.listPolicies(null, new ListOptions().limit(1))));
+                Listing.of(client.listPolicies(null, new ListOptions().limit(1))).map(PolicySummary::getName));
         final String initial = initialPolicy(first, defaultPolicy, ViewSupport.unchecked(() -> defaultPolicy == null
                 ? Listing.<String>of(new Page<>(List.of(), 0))
-                : Listing.of(client.listPolicies(null, new ListOptions().search(defaultPolicy)))).items());
+                : Listing.of(client.listPolicies(null, new ListOptions().search(defaultPolicy))).map(PolicySummary::getName)).items());
         if (initial != null) {
             policy.setValue(initial);
         }

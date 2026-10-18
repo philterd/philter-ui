@@ -20,7 +20,7 @@ import ai.philterd.philter.model.ContextDetails;
 import ai.philterd.philter.model.DisambiguationScope;
 import ai.philterd.philter.model.GetContextsAcrossUsersResponse;
 import ai.philterd.philter.model.GetContextsResponse;
-import ai.philterd.philter.model.OwnedName;
+import ai.philterd.philter.model.ContextSummary;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
@@ -83,7 +83,7 @@ public class ContextsView extends VerticalLayout {
                 () -> openDelete(name))).setHeader("Delete").setAutoWidth(true).setFlexGrow(0);
         final ListingProvider<String> listing = ListingProvider.bind(grid, options -> {
             final GetContextsResponse page = client.listContexts(null, options);
-            return new Listing<>(page.getContexts(), page.getTotal());
+            return new Listing<>(page.getContexts(), page.getTotal()).map(ContextSummary::getName);
         });
         grid.setSizeFull();
 
@@ -129,12 +129,12 @@ public class ContextsView extends VerticalLayout {
 
     private VerticalLayout allContexts() {
 
-        final Grid<OwnedName> all = new Grid<>();
-        all.addColumn(OwnedName::getName).setHeader("Context").setResizable(true).setSortProperty("name");
-        all.addColumn(OwnedName::getOwner).setHeader("Owner").setResizable(true);
+        final Grid<ContextSummary> all = new Grid<>();
+        all.addColumn(ContextSummary::getName).setHeader("Context").setResizable(true).setSortProperty("name");
+        all.addColumn(ContextSummary::getOwner).setHeader("Owner").setResizable(true);
         all.addComponentColumn(row -> ViewSupport.button("View", VaadinIcon.DOCTOR_BRIEFCASE, "View context " + row.getName(),
                 () -> openView(row.getName(), row.getOwner()))).setHeader("View").setAutoWidth(true).setFlexGrow(0);
-        final ListingProvider<OwnedName> listing = ListingProvider.bind(all, options -> {
+        final ListingProvider<ContextSummary> listing = ListingProvider.bind(all, options -> {
             final GetContextsAcrossUsersResponse page = client.listContextsAcrossUsers(options);
             return new Listing<>(page.getContexts(), page.getTotal());
         });
