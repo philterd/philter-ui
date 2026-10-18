@@ -15,9 +15,11 @@
  */
 package ai.philterd.ui.views;
 
+import ai.philterd.philter.model.CustomList;
 import ai.philterd.ui.TestRules;
 import ai.philterd.ui.model.Lines;
 import ai.philterd.ui.model.PhilterRules;
+import com.google.gson.Gson;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -49,6 +51,32 @@ class CustomListsViewTest {
     void unknownLimitsAreLeftToPhilter() {
         assertNull(CustomListsView.itemsProblem(Collections.nCopies(500, "x".repeat(500)), PhilterRules.unknown()));
         assertEquals("Enter at least one item.", CustomListsView.itemsProblem(List.of(), PhilterRules.unknown()));
+    }
+
+    /** A list as the SDK reads Philter's answer to {@code GET /api/lists/{name}}. */
+    private static CustomList read(final String json) {
+        return new Gson().fromJson(json, CustomList.class);
+    }
+
+    @Test
+    void theEditDialogShowsTheListsItemsFromPhilter4() {
+        // Philter 4.0's documented response.
+        final CustomList list = read("{\"items\": [\"item1\", \"item2\"], \"description\": \"My description\"}");
+        assertEquals("item1\nitem2", CustomListsView.itemsText(list));
+        assertEquals("My description", list.getDescription());
+    }
+
+    @Test
+    void aListWhoseItemsCannotBeReadIsNotOpenedForEditing() {
+        // Philter 4.0 development builds returned the items under lists, which the SDK no longer reads.
+        assertNull(CustomListsView.itemsText(read("{\"lists\": [\"item1\"], \"description\": \"\"}")));
+        assertNull(CustomListsView.itemsText(new CustomList()));
+    }
+
+    @Test
+    void aListWithNoItemsOpensEmpty() {
+        // Philter 4.0 stores one when every item sent is whitespace, which it trims only after its empty check.
+        assertEquals("", CustomListsView.itemsText(read("{\"items\": [], \"description\": \"\"}")));
     }
 
 }

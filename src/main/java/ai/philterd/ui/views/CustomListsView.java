@@ -199,6 +199,11 @@ public class CustomListsView extends VerticalLayout {
             refresh();
             return;
         }
+        final String listItems = itemsText(list);
+        if (listItems == null) {
+            Notifications.warning(ITEMS_UNREADABLE);
+            return;
+        }
 
         final TextField name = new TextField("List name");
         name.setWidthFull();
@@ -208,7 +213,7 @@ public class CustomListsView extends VerticalLayout {
         final TextField description = descriptionField();
         description.setValue(originalDescription);
         final TextArea items = itemsField();
-        items.setValue(String.join("\n", ViewSupport.orEmpty(list.getItems())));
+        items.setValue(listItems);
         final Span error = errorSpan();
 
         final Dialog dialog = listDialog("Edit Custom List", error, name, description, items);
@@ -266,6 +271,19 @@ public class CustomListsView extends VerticalLayout {
         dialog.getFooter().add(ViewSupport.cancel(dialog), delete);
         dialog.open();
 
+    }
+
+    /** Shown instead of the Edit dialog when Philter's answer has no items field, since saving would replace them. */
+    static final String ITEMS_UNREADABLE = "Philter did not return this list's items, so it cannot be edited here. "
+            + "Saving would replace the list's items with only what you entered.";
+
+    /**
+     * A list's items, one per line, as the Edit dialog shows them, or {@code null} when Philter's answer had no
+     * {@code items}, as from a Philter 4.0 development build that returned them under {@code lists}. An empty
+     * {@code items} is a list with no items, which is shown as such.
+     */
+    static String itemsText(final CustomList list) {
+        return list.getItems() == null ? null : String.join("\n", list.getItems());
     }
 
     /** What is wrong with the items under Philter's limits, or {@code null} if nothing is. */
