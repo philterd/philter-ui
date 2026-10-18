@@ -54,7 +54,9 @@ import jakarta.annotation.security.RolesAllowed;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * The person's redaction ledgers, through Philter's ledger API. Administrators also see every user's
@@ -180,7 +182,9 @@ public class LedgerView extends VerticalLayout {
 
         final LedgerChain chain;
         try {
-            chain = client.getLedgerChain(documentId, owner);
+            // One entry is enough here: the verification covers the whole chain on every page, and the grid
+            // reads the entries itself.
+            chain = client.getLedgerChain(documentId, owner, 0, 1);
         } catch (final ClientException | ServiceUnavailableException | IOException e) {
             Notifications.failure(e, "The ledger chain could not be read.");
             return;
@@ -221,9 +225,10 @@ public class LedgerView extends VerticalLayout {
         entries.addColumn(LedgerEntry::getPolicyName).setHeader("Policy").setAutoWidth(true);
         entries.addColumn(LedgerEntry::getPolicyVersion).setHeader("Version").setAutoWidth(true);
         entries.addColumn(entry -> ViewSupport.utc(entry.getTimestamp())).setHeader("Timestamp").setAutoWidth(true);
-        entries.setItems(ViewSupport.orEmpty(chain.getEntries()));
+        final ListingProvider<LedgerEntry> listing = ListingProvider.bind(entries,
+                chainEntries((offset, limit) -> client.getLedgerChain(documentId, owner, offset, limit)));
         entries.setSizeFull();
-        dialog.add(entries);
+        dialog.add(listing.toolbar(entries, null, "entry", "entries"), entries);
 
         final Button close = new Button("Close", e -> dialog.close());
         close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -347,6 +352,22 @@ public class LedgerView extends VerticalLayout {
             detail.append("A signature does not match its entry. ");
         }
         return detail.length() == 0 ? "The chain does not verify." : detail.toString().trim();
+    }
+
+    /** Reads a range of a chain's entries, with the chain's checks and total. */
+    interface ChainReader extends Serializable {
+        LedgerChain read(int offset, int limit) throws IOException;
+    }
+
+    /** A chain's entries as a listing, a page at a time, so every entry of a long chain can be reached. */
+    static ListingProvider.Reader<LedgerEntry> chainEntries(final ChainReader reader) {
+        return options -> entries(reader.read(options.getOffset(), options.getLimit()));
+    }
+
+    /** A page of a chain's entries and how many the whole chain has. */
+    static Listing<LedgerEntry> entries(final LedgerChain chain) {
+        final List<LedgerEntry> items = ViewSupport.orEmpty(chain.getEntries());
+        return new Listing<>(items, chain.getTotal() == null ? items.size() : chain.getTotal());
     }
 
     private static Listing<LedgerEntry> ledger(final GetLedgerResponse page) {

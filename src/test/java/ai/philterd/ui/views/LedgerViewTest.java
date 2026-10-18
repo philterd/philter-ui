@@ -16,7 +16,13 @@
 package ai.philterd.ui.views;
 
 import ai.philterd.philter.model.LedgerChain;
+import ai.philterd.philter.model.LedgerEntry;
+import com.vaadin.flow.data.provider.Query;
 import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -77,6 +83,74 @@ class LedgerViewTest {
         assertEquals("Philter could not read this chain's first entry, so the chain cannot be verified or exported. "
                         + "Philter says: This entry could not be read, so its replacement is not shown.",
                 LedgerView.unreadableDetail("This entry could not be read, so its replacement is not shown. "));
+    }
+
+    /**
+     * Philter's chain of {@code total} entries, as {@code GET /api/ledger/{documentId}} pages it: at most 100 per
+     * request, with the whole chain's total and checks on every page. The chain fails its hash check.
+     */
+    private static final class Chain implements LedgerView.ChainReader {
+
+        private final int total;
+        final List<int[]> requests = new ArrayList<>();
+
+        Chain(final int total) {
+            this.total = total;
+        }
+
+        @Override
+        public LedgerChain read(final int offset, final int limit) {
+            requests.add(new int[]{offset, limit});
+            final int from = Math.min(Math.max(0, offset), total);
+            final int to = Math.min(total, from + Math.min(limit, 100));
+            final LedgerChain page = chain(false, false, true, null);
+            page.setEntries(IntStream.range(from, to).mapToObj(i -> {
+                final LedgerEntry entry = new LedgerEntry();
+                entry.setStartPosition(i);
+                return entry;
+            }).toList());
+            page.setTotal((long) total);
+            return page;
+        }
+    }
+
+    private static Query<LedgerEntry, Void> rows(final int offset, final int limit) {
+        return new Query<>(offset, limit, List.of(), null, null);
+    }
+
+    @Test
+    void everyEntryOfAChainLongerThanOnePageCanBeReached() {
+        final Chain philter = new Chain(250);
+        final List<Long> totals = new ArrayList<>();
+        final ListingProvider<LedgerEntry> provider = new ListingProvider<>(LedgerView.chainEntries(philter), 50)
+                .onTotal(totals::add);
+
+        assertEquals(250, provider.count(rows(0, Integer.MAX_VALUE)));
+        assertEquals(50, provider.fetch(rows(0, 50)).count());
+        assertEquals(1, philter.requests.size(), "the count and the first rows share one request");
+
+        final List<LedgerEntry> last = provider.fetch(rows(200, 50)).toList();
+        assertEquals(50, last.size());
+        assertEquals(249, last.get(last.size() - 1).getStartPosition(), "the last entry is reached");
+        assertEquals(200, philter.requests.get(1)[0]);
+
+        // A range wider than Philter's cap is read in requests of at most 100.
+        assertEquals(150, provider.fetch(rows(50, 150)).count());
+        assertTrue(philter.requests.stream().allMatch(request -> request[1] <= 100));
+        assertTrue(totals.stream().allMatch(total -> total == 250));
+    }
+
+    @Test
+    void thePagesTotalIsTheWholeChains() {
+        final LedgerChain page = new Chain(250).read(0, 1);
+        assertEquals(1, LedgerView.entries(page).items().size());
+        assertEquals(250, LedgerView.entries(page).total());
+        // The verification is the whole chain's, whichever page it came with.
+        assertEquals(LedgerView.Verification.INVALID, LedgerView.verification(page));
+
+        // A Philter that gives no total counts only the entries it returned.
+        page.setTotal(null);
+        assertEquals(1, LedgerView.entries(page).total());
     }
 
 }
