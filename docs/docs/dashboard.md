@@ -12,7 +12,7 @@ Lists, such as your policies, contexts, or legal holds, are read from Philter a 
 
 The **Dashboard** is the home page. It redacts text or a PDF with one of your policies so you can see what the policy finds, and tune it before deploying it.
 
-* Pick a **Policy**. The list holds your own policies, read from Philter as you scroll; type to search them by name. `default` is selected when you have one, or your only policy when you have just one.
+* Pick a **Policy**. The list holds your own policies, read from Philter as you scroll; type to search them by name. `default` is selected when you have one, or your only policy when you have just one. Managed policies are not listed, since Philter does not redact with them directly. To test one, copy it with **Create Policy From** on the [Managed Policies](#policies) tab and pick the copy.
 * **Text** redacts what you type or paste and shows the redacted text below it.
 * **PDF** takes one PDF and returns the redacted PDF to download, named after the upload with `-redacted.pdf` in place of `.pdf` and unusual characters replaced by underscores. The file must be a PDF, not only named like one. The page shows the largest PDF it accepts and refuses a larger one before uploading it: Philter's own limit, its `MAX_FILE_SIZE_BYTES` (10 MB by default), which Philter UI reads from Philter, or a smaller limit set with Philter UI's `MAX_PDF_BYTES`. If Philter refuses a document as too large, the page says so and names the limit. Philter UI holds the upload in memory and does not write it to disk. It waits up to `DOCUMENT_TIMEOUT_SECONDS` (default 300) for Philter to finish, and reports that Philter could not be reached if it takes longer; see [Running](index.md#running).
 
@@ -38,7 +38,7 @@ The **Deleted Policies** tab lists your deleted policies whose history Philter k
 * **See its history**: view and compare its revisions, as for a live policy. A deleted policy cannot be rolled back.
 * **Restore** it, as it was when it was deleted, or from any revision in its history. The revision is saved as your policy under the same name at a new revision, its history continues, and it leaves the **Deleted Policies** tab. Philter refuses while you have another policy with that name.
 
-The **Managed Policies** tab lists Philter's ready-made policies, such as common PII, financial PII, and healthcare PHI, with their descriptions. You can view them and create your own policy from one; managed policies themselves cannot be changed or deleted.
+The **Managed Policies** tab lists Philter's ready-made policies, such as common PII, financial PII, and healthcare PHI, with their descriptions. You can view them and create your own policy from one with **Create Policy From**. Managed policies themselves cannot be changed or deleted, and Philter does not redact with them directly: to redact with one, including testing it on the Dashboard, create a policy from it.
 
 Administrators also see an **All Policies** tab listing every user's policies and their owners, including users who have been deactivated, and can view each policy's JSON, when Philter's `ADMIN_CROSS_USER_ACCESS_ENABLED` is `true`.
 

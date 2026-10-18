@@ -156,8 +156,8 @@ public class PoliciesView extends VerticalLayout {
         managed.setSizeFull();
 
         final VerticalLayout layout = new VerticalLayout(new Span("Managed policies are ready-made policies for common "
-                + "needs. You can use them as any other policy, but not change or delete them; copy one to make "
-                + "your own version."), listing.toolbar(managed, "Search by name", "managed policy", "managed policies"),
+                + "needs. They cannot be changed or deleted, and Philter does not redact with them directly: create "
+                + "a policy from one to redact with it or test it on the Dashboard."), listing.toolbar(managed, "Search by name", "managed policy", "managed policies"),
                 managed);
         layout.setSizeFull();
         return layout;
