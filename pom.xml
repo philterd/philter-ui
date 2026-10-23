@@ -32,7 +32,7 @@
         <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <philter-sdk-java.version>2.0.0-SNAPSHOT</philter-sdk-java.version>
+        <philter-sdk-java.version>3.0.0</philter-sdk-java.version>
         <!-- Security fixes newer than the Spring Boot managed Tomcat release; matches philter. -->
         <tomcat.version>11.0.27</tomcat.version>
         <zxing.version>3.5.4</zxing.version>
