@@ -28,8 +28,8 @@ services:
       STORAGE_TYPE: sqlite
       SQLITE_PATH: /opt/philter/data/philter.db
       PHEYE_ENDPOINT: http://ph-eye:5000/
-      PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:-pF46QOBznYcOZrnflw9HsRBIe9769uW/Bza2blBpHIk=}
-      PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:-sk_developmentonlydevelopmentonly01}
+      PHILTER_ENCRYPTION_KEY: ${PHILTER_ENCRYPTION_KEY:?Generate it in .env; see Docker Compose in README.md}
+      PHILTER_BOOTSTRAP_API_KEY: ${PHILTER_BOOTSTRAP_API_KEY:?Generate it in .env; see Docker Compose in README.md}
     volumes:
       - philter-data:/opt/philter/data
     ports:

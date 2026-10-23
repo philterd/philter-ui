@@ -43,19 +43,25 @@ Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Philter UI verifies Philt
 
 Philter keeps its data in a SQLite database (`STORAGE_TYPE=sqlite`) in the `philter-data` volume, mounted at `/opt/philter/data`, so users, policies, and other data survive `docker compose down` and `docker compose up`. `docker compose down -v` removes the volume and its data. To run Philter on MongoDB instead, for example to run several Philter instances, see Philter's [database documentation](https://philterd.github.io/philter/latest/database.html#choosing-sqlite-or-mongodb).
 
+Philter needs an encryption key and a bootstrap API key, which `docker-compose.yml` reads from `.env`. Generate them once and keep them: data encrypted with `PHILTER_ENCRYPTION_KEY` cannot be recovered without it, and Philter does not start if it changes.
+
 ```
+umask 077
+[ -f .env ] || printf 'PHILTER_ENCRYPTION_KEY=%s\nPHILTER_BOOTSTRAP_API_KEY=sk_%s\n' \
+  "$(openssl rand -base64 32)" "$(openssl rand -hex 16)" > .env
 docker compose up -d --build
 ```
 
-The `admin` user starts without a password. Set one with the bootstrap API key in `docker-compose.yml`, then sign in at `http://localhost:8081`:
+The `admin` user starts without a password. Set one with the bootstrap API key, then sign in at `http://localhost:8081`:
 
 ```
+API_KEY=$(sed -n 's/^PHILTER_BOOTSTRAP_API_KEY=//p' .env)
 curl -X PUT http://localhost:8080/api/users/admin/password \
-  -H "Authorization: Bearer sk_developmentonlydevelopmentonly01" \
+  -H "Authorization: Bearer ${API_KEY}" \
   -H "Content-Type: application/json" -d '{"password": "<16 or more characters>"}'
 ```
 
-Before using it with real data, replace the development `PHILTER_ENCRYPTION_KEY` and `PHILTER_BOOTSTRAP_API_KEY`, and serve Philter UI over HTTPS.
+Before using it with real data, serve Philter UI over HTTPS.
 
 ## License
 
