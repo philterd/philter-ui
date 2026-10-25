@@ -20,6 +20,7 @@ import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.ServiceUnavailableException;
 import ai.philterd.ui.security.Notice;
 import ai.philterd.ui.security.PhilterClients;
+import ai.philterd.ui.security.PhilterVersions;
 import ai.philterd.ui.security.SignInFailedException;
 import ai.philterd.ui.security.SignInMessages;
 import com.vaadin.flow.component.html.H1;
@@ -43,8 +44,8 @@ import java.util.Optional;
 
 /**
  * The sign-in page. The form posts to Spring Security's {@code /login}, which sends the username and
- * password to Philter; Philter UI does not store either. When Philter has password sign-in turned off, the form is
- * disabled and the page says so.
+ * password to Philter; Philter UI does not store either. When Philter is a version Philter UI does not support, or
+ * has password sign-in turned off, the form is disabled and the page says so.
  */
 @Route("login")
 @PageTitle("Sign In | Philter UI")
@@ -84,7 +85,9 @@ public class SignInView extends VerticalLayout implements BeforeEnterObserver {
             form.setError(true);
         }
 
-        final String off = passwordSignInOff(signInOptions());
+        // A Philter before 4.0 has no sign-in endpoint either, so its version is checked first.
+        final String unsupported = PhilterVersions.unsupported(clients);
+        final String off = unsupported != null ? unsupported : passwordSignInOff(signInOptions());
         unavailable.setText(off == null ? "" : off);
         unavailable.setVisible(off != null);
         form.setEnabled(off == null);

@@ -8,6 +8,14 @@ The Vaadin dashboard was moved here from `philterd/philter` at commit `c558c65` 
 
 The user guide is in `docs/` (MkDocs; run `mkdocs build` from that directory).
 
+## Supported Philter versions
+
+| Philter UI | Philter |
+|------------|---------|
+| 4.0.0 | 4.x |
+
+Philter UI reads Philter's version from `GET /api/health` on the sign-in page and at each sign-in, and does not sign anyone in to a version it does not support.
+
 ## Building
 
 Requires Java 25 and Node.js. The build installs the frontend's npm packages and bundles them into the jar:
@@ -19,7 +27,7 @@ mvn verify
 ## Running
 
 ```
-java -jar target/philter-ui-4.0.0-SNAPSHOT.jar
+java -jar target/philter-ui-4.0.0.jar
 ```
 
 | Environment variable | Description | Default |
@@ -39,7 +47,7 @@ Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Philter UI verifies Philt
 
 ### Docker Compose
 
-`docker-compose.yml` runs Philter UI, built from this repository, beside Philter 4.0.0 and the ph-eye service Philter needs. Philter has password sign-in turned on and serves plain HTTP on the private compose network, where Philter UI reaches it at `http://philter:8080`. It is meant for development and evaluation.
+`docker-compose.yml` runs Philter UI, built from this repository, beside Philter 4.0.0. The Philter image includes the PhEye model its default policy uses, so no separate ph-eye service is needed. Philter has password sign-in turned on and serves plain HTTP on the private compose network, where Philter UI reaches it at `http://philter:8080`. It is meant for development and evaluation.
 
 Philter keeps its data in a SQLite database (`STORAGE_TYPE=sqlite`) in the `philter-data` volume, mounted at `/opt/philter/data`, so users, policies, and other data survive `docker compose down` and `docker compose up`. `docker compose down -v` removes the volume and its data. To run Philter on MongoDB instead, for example to run several Philter instances, see Philter's [database documentation](https://philterd.github.io/philter/latest/database.html#choosing-sqlite-or-mongodb).
 

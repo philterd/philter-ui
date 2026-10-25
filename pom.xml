@@ -9,7 +9,7 @@
     </parent>
     <groupId>ai.philterd</groupId>
     <artifactId>philter-ui</artifactId>
-    <version>4.0.0-SNAPSHOT</version>
+    <version>4.0.0</version>
     <name>philter-ui</name>
     <url>https://www.philterd.ai</url>
     <description>Optional web UI for administering Philter through its REST API.</description>

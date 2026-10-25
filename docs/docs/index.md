@@ -29,6 +29,8 @@ java -jar philter-ui-{$ philter_ui_version }.jar
 | `PHILTER_TRUST_STORE` | A PKCS12 or JKS trust store holding the certificates Philter UI trusts for Philter, in place of the JVM's defaults. See [Client certificates and trust stores](#client-certificates-and-trust-stores). | None |
 | `PHILTER_TRUST_STORE_PASSWORD` | The password of `PHILTER_TRUST_STORE`. A PKCS12 trust store needs it. | None |
 
+Philter UI {$ philter_ui_version } supports Philter 4.x. It reads Philter's version from `GET /api/health` on the sign-in page and at each sign-in. Against a version it does not support, the sign-in page names that version and its form is disabled.
+
 Philter must have password sign-in enabled with `PASSWORD_SIGN_IN_ENABLED=true`; it is off by default. See Philter's [Sign-in Security]({$ philter_docs }/sign_in_security.html).
 
 Philter UI verifies Philter's TLS certificate, and that it names the host in `PHILTER_URL`. Philter's Docker image serves HTTPS with a self-signed certificate, which Philter UI does not trust. A Philter JAR serves plain HTTP unless `SSL_ENABLED=true`; to use it as is, set `PHILTER_URL` to its `http://` address, and keep the network between Philter UI and Philter private, since passwords and redacted text cross it. Give Philter a certificate from a certificate authority your Java runtime trusts, or put Philter's certificate in a trust store and set `PHILTER_TRUST_STORE`, as described in [Client certificates and trust stores](#client-certificates-and-trust-stores).
@@ -86,7 +88,7 @@ docker run -p 8081:8081 \
 
 ### Docker Compose
 
-The `docker-compose.yml` in the [Philter UI repository](https://github.com/philterd/philter-ui) runs Philter UI, built from source, beside Philter 4.0.0 and the ph-eye service Philter needs. Philter has password sign-in turned on and serves plain HTTP on the private compose network, where Philter UI reaches it at `http://philter:8080`. It is meant for development and evaluation.
+The `docker-compose.yml` in the [Philter UI repository](https://github.com/philterd/philter-ui) runs Philter UI, built from source, beside Philter 4.0.0. The Philter image includes the PhEye model its default policy uses, so no separate ph-eye service is needed. Philter has password sign-in turned on and serves plain HTTP on the private compose network, where Philter UI reaches it at `http://philter:8080`. It is meant for development and evaluation.
 
 Philter keeps its data in a SQLite database (`STORAGE_TYPE=sqlite`) in the `philter-data` volume, mounted at `/opt/philter/data`, so users, policies, and other data survive `docker compose down` and `docker compose up`. `docker compose down -v` removes the volume and its data. To run Philter on MongoDB instead, for example to run several Philter instances, see Philter's [database documentation]({$ philter_docs }/database.html#choosing-sqlite-or-mongodb).
 

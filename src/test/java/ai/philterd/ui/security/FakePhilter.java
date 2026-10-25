@@ -38,6 +38,8 @@ final class FakePhilter implements AutoCloseable {
     final List<String> userAgents = new CopyOnWriteArrayList<>();
     /** The path and X-Forwarded-For of each request made with a session key, as "path xff" or "path none". */
     final List<String> sessionRequests = new CopyOnWriteArrayList<>();
+    /** The version {@code /api/health} reports, or null to answer 404 as Philter 3.x does. */
+    volatile String version = "4.0.0";
     private final HttpServer server;
 
     FakePhilter() throws IOException {
@@ -45,6 +47,7 @@ final class FakePhilter implements AutoCloseable {
         server.createContext("/api/sign-in", this::signIn);
         server.createContext("/api/users/me", this::me);
         server.createContext("/api/api-keys/current", this::signOut);
+        server.createContext("/api/health", this::health);
         server.start();
     }
 
@@ -89,6 +92,14 @@ final class FakePhilter implements AutoCloseable {
             case "disabled" -> respond(exchange, 404, "{\"message\":\"Not found.\",\"reason\":\"not_found\"}");
             default -> respond(exchange, 401, "{\"message\":\"Unauthorized\",\"reason\":\"invalid_credentials\"}");
         }
+    }
+
+    private void health(final HttpExchange exchange) throws IOException {
+        if (version == null) {
+            respond(exchange, 404, "{\"message\":\"Not found.\",\"reason\":\"not_found\"}");
+            return;
+        }
+        respond(exchange, 200, "{\"status\":\"UP\",\"applicationVersion\":\"" + version + "\"}");
     }
 
     private void me(final HttpExchange exchange) throws IOException {

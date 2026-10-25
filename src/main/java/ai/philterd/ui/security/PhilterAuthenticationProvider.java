@@ -53,6 +53,12 @@ public class PhilterAuthenticationProvider implements AuthenticationProvider {
         final String username = authentication.getName();
         final String password = authentication.getCredentials() == null ? "" : authentication.getCredentials().toString();
 
+        final String unsupported = PhilterVersions.unsupported(clients);
+        if (unsupported != null) {
+            LOGGER.warn("Sign-in refused: {}", unsupported);
+            throw new SignInFailedException(unsupported, null);
+        }
+
         try {
             return signIns.toAuthentication(username,
                     clients.anonymous().signIn(username, password, addresses.current(), addresses.currentUserAgent()));

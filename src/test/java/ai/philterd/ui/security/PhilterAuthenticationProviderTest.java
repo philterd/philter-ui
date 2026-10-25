@@ -168,6 +168,33 @@ class PhilterAuthenticationProviderTest {
     }
 
     @Test
+    void anotherMajorVersionOfPhilterIsRefusedBeforeSignIn() {
+        philter.version = "5.0.0";
+        assertEquals("This Philter is version 5.0.0, which Philter UI does not support. "
+                + "Philter UI supports Philter 4.x.", failure("jordan"));
+        assertTrue(philter.userAgents.isEmpty());
+    }
+
+    @Test
+    void aPhilterWithoutTheHealthEndpointIsRefusedAsOlderThan4() {
+        philter.version = null;
+        assertEquals(PhilterVersions.OLDER_THAN_4, failure("jordan"));
+        assertTrue(philter.userAgents.isEmpty());
+    }
+
+    @Test
+    void anyPhilter4ReleaseIsSupported() {
+        philter.version = "4.2.1-SNAPSHOT";
+        assertEquals("jordan", ((PhilterUser) signIn("jordan").getPrincipal()).getUsername());
+    }
+
+    @Test
+    void anUnreadableVersionDoesNotBlockSignIn() {
+        assertNull(PhilterVersions.unsupported((String) null));
+        assertNull(PhilterVersions.unsupported("unknown"));
+    }
+
+    @Test
     void aKeyWhoseRoleCannotBeReadIsRevoked() {
         failure("broken");
         assertEquals(java.util.List.of("sk_broken"), philter.revokedKeys);

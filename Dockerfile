@@ -7,8 +7,8 @@ WORKDIR /build
 COPY pom.xml package.json package-lock.json tsconfig.json types.d.ts vite.config.ts ./
 COPY src ./src
 
-# Tests run in CI; -U re-checks SNAPSHOT dependencies such as philter-sdk-java.
-RUN mvn -B -U package -DskipTests
+# Tests run in CI.
+RUN mvn -B package -DskipTests
 
 # --- Runtime image ---
 FROM eclipse-temurin:25-jre
