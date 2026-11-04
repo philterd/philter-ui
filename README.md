@@ -1,6 +1,8 @@
 # Philter UI
 
-An optional web UI for administering [Philter](https://github.com/philterd/philter). Philter 4.0 runs headless and is administered through its REST API; Philter UI is a separate application that calls that API. People sign in with their Philter username and password; Philter checks them and returns a session key that Philter UI uses for that person's requests. Philter does not need it.
+A simple, optional web UI on top of [Philter](https://github.com/philterd/philter) for managing policies, ledgers, and users. For a full redaction workflow application, use [Philter Workspace](https://philterd.ai/philter-workspace).
+
+Philter 4.0 runs headless and is administered through its REST API; Philter UI is a separate application that calls that API. People sign in with their Philter username and password; Philter checks them and returns a session key that Philter UI uses for that person's requests. Philter does not need it.
 
 ## Status
 
