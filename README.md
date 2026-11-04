@@ -42,7 +42,7 @@ The user guide is in `docs/` (MkDocs; run `mkdocs build` from that directory):
 
 | Philter UI | Philter |
 |------------|---------|
-| 4.0.0 | 4.x |
+| 4.0.0-SNAPSHOT | 4.x |
 
 ## Building
 
@@ -50,7 +50,7 @@ Requires Java 25 and Node.js. The build installs the frontend's npm packages and
 
 ```
 mvn verify
-java -jar target/philter-ui-4.0.0.jar
+java -jar target/philter-ui-4.0.0-SNAPSHOT.jar
 ```
 
 Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Set `PHILTER_URL` to its address.

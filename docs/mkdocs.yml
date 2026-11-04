@@ -35,7 +35,7 @@ theme:
   features:
     - content.code.annotate
 extra:
-  philter_ui_version: 4.0.0
+  philter_ui_version: 4.0.0-SNAPSHOT
   philter_docs: https://philterd.github.io/philter/latest
   version:
     provider: mike
