@@ -4,12 +4,6 @@ A simple, optional web UI on top of [Philter](https://github.com/philterd/philte
 
 Philter 4.0 runs headless and is administered through its REST API; Philter UI is a separate application that calls that API. People sign in with their Philter username and password; Philter checks them and returns a session key that Philter UI uses for that person's requests. Philter does not need it.
 
-## Status
-
-The Vaadin dashboard was moved here from `philterd/philter` at commit `c558c65` and has since been ported to Philter's REST API through [philter-sdk-java](https://github.com/philterd/philter-sdk-java). Every page works through the API with the signed-in person's session key; none reads Philter's database or services.
-
-The user guide is in `docs/` (MkDocs; run `mkdocs build` from that directory).
-
 ## Supported Philter versions
 
 | Philter UI | Philter |
