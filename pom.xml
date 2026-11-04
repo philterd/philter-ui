@@ -36,7 +36,7 @@
         <!-- Security fixes newer than the Spring Boot managed Tomcat release; matches philter. -->
         <tomcat.version>11.0.27</tomcat.version>
         <zxing.version>3.5.4</zxing.version>
-        <vaadin.version>25.3.2</vaadin.version>
+        <vaadin.version>25.3.5</vaadin.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
         <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
