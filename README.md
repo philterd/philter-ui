@@ -2,50 +2,11 @@
 
 A simple, optional web UI on top of [Philter](https://github.com/philterd/philter) for managing policies, ledgers, and users. For a full redaction workflow application, use [Philter Workspace](https://philterd.ai/philter-workspace).
 
-Philter 4.0 runs headless and is administered through its REST API; Philter UI is a separate application that calls that API. People sign in with their Philter username and password; Philter checks them and returns a session key that Philter UI uses for that person's requests. Philter does not need it.
+Philter UI is a separate application that calls Philter's REST API. People sign in with their Philter username and password. Philter does not need it.
 
-## Supported Philter versions
+## Quickstart
 
-| Philter UI | Philter |
-|------------|---------|
-| 4.0.0 | 4.x |
-
-Philter UI reads Philter's version from `GET /api/health` on the sign-in page and at each sign-in, and does not sign anyone in to a version it does not support.
-
-## Building
-
-Requires Java 25 and Node.js. The build installs the frontend's npm packages and bundles them into the jar:
-
-```
-mvn verify
-```
-
-## Running
-
-```
-java -jar target/philter-ui-4.0.0.jar
-```
-
-| Environment variable | Description | Default |
-|----------------------|-------------|---------|
-| `PHILTER_URL` | The address of your Philter instance. | `https://localhost:8080` |
-| `PORT` | The port Philter UI listens on, so it can run beside Philter on 8080. | `8081` |
-| `SESSION_TIMEOUT_MINUTES` | Minutes without interaction before a person is signed out, whether or not the tab is still open. | `30` |
-| `DOCUMENT_TIMEOUT_SECONDS` | Seconds to wait for Philter to redact a PDF on the Dashboard. | `300` |
-| `MAX_PDF_BYTES` | The largest PDF the Dashboard accepts, in bytes. `0` follows Philter's own limit (its `MAX_FILE_SIZE_BYTES`, read from Philter); a smaller value lowers it, for example to limit the memory an upload uses. When Philter's limits cannot be read, this value or 10 MB is used. | `0` |
-| `TRUSTED_PROXIES` | Reverse proxies in front of Philter UI (IP addresses and CIDR ranges), whose `X-Forwarded-For` is believed when passing a person's address to Philter with each request. | None |
-| `PHILTER_CLIENT_CERTIFICATE` | A PKCS12 or JKS keystore holding the client certificate and private key Philter UI presents to Philter, for a Philter that requires one (mutual TLS). | None |
-| `PHILTER_CLIENT_CERTIFICATE_PASSWORD` | The password of `PHILTER_CLIENT_CERTIFICATE`, which its private key must also use. Required with `PHILTER_CLIENT_CERTIFICATE`. | None |
-| `PHILTER_TRUST_STORE` | A PKCS12 or JKS trust store holding the certificates Philter UI trusts for Philter, in place of the JVM's defaults. Build it with `keytool -importcert`. | None |
-| `PHILTER_TRUST_STORE_PASSWORD` | The password of `PHILTER_TRUST_STORE`. A PKCS12 trust store needs it. | None |
-
-Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Philter UI verifies Philter's TLS certificate and host name, so a Philter with a self-signed certificate or one from a private certificate authority needs that certificate in `PHILTER_TRUST_STORE`. For a Philter that requires a client certificate, either itself ([mutual TLS](https://philterd.github.io/philter/latest/settings.html#client-certificates-mutual-tls)) or through a load balancer or service mesh in front of it, set `PHILTER_CLIENT_CERTIFICATE`. See the [user guide](docs/docs/index.md#client-certificates-and-trust-stores).
-
-### Docker Compose
-
-`docker-compose.yml` runs Philter UI, built from this repository, beside Philter 4.0.0. The Philter image includes the PhEye model its default policy uses, so no separate ph-eye service is needed. Philter has password sign-in turned on and serves plain HTTP on the private compose network, where Philter UI reaches it at `http://philter:8080`. It is meant for development and evaluation.
-
-Philter keeps its data in a SQLite database (`STORAGE_TYPE=sqlite`) in the `philter-data` volume, mounted at `/opt/philter/data`, so users, policies, and other data survive `docker compose down` and `docker compose up`. `docker compose down -v` removes the volume and its data. To run Philter on MongoDB instead, for example to run several Philter instances, see Philter's [database documentation](https://philterd.github.io/philter/latest/database.html#choosing-sqlite-or-mongodb).
+`docker-compose.yml` runs Philter UI, built from this repository, beside Philter 4.0.0. It is meant for development and evaluation.
 
 Philter needs an encryption key and a bootstrap API key, which `docker-compose.yml` reads from `.env`. Generate them once and keep them: data encrypted with `PHILTER_ENCRYPTION_KEY` cannot be recovered without it, and Philter does not start if it changes.
 
@@ -66,6 +27,33 @@ curl -X PUT http://localhost:8080/api/users/admin/password \
 ```
 
 Before using it with real data, serve Philter UI over HTTPS.
+
+## Documentation
+
+The user guide is in `docs/` (MkDocs; run `mkdocs build` from that directory):
+
+- [Running](docs/docs/index.md#running): all environment variables and how to connect to your own Philter
+- [Client certificates and trust stores](docs/docs/index.md#client-certificates-and-trust-stores)
+- [Docker Compose](docs/docs/index.md#docker-compose): data storage and other details of the compose file
+- [Signing in](docs/docs/sign_in.md)
+- [Dashboard](docs/docs/dashboard.md)
+
+## Supported Philter versions
+
+| Philter UI | Philter |
+|------------|---------|
+| 4.0.0 | 4.x |
+
+## Building
+
+Requires Java 25 and Node.js. The build installs the frontend's npm packages and bundles them into the jar:
+
+```
+mvn verify
+java -jar target/philter-ui-4.0.0.jar
+```
+
+Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Set `PHILTER_URL` to its address.
 
 ## License
 
